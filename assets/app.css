@@ -227,6 +227,16 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .btn:hover{ background:var(--dock-3); transform:translateY(-1px); box-shadow:var(--shadow-1); }
 .btn:active{ transform:translateY(1px) scale(.985); box-shadow:none; }
 .btn:disabled{ transform:none; box-shadow:none; }
+/* Dipasang app.js sebentar untuk menunjuk tombol yang perlu ditekan
+   berikutnya — mis. setelah impor yang barisnya belum punya lokasi. */
+.btn.disorot{
+  border-color:var(--hi);
+  animation:tombol-denyut 1.1s var(--ease) 3;
+}
+@keyframes tombol-denyut{
+  0%,100%{ box-shadow:0 0 0 0 var(--hi-soft) }
+  45%{ box-shadow:0 0 0 6px var(--hi-soft) }
+}
 .btn:disabled{ opacity:.45; cursor:not-allowed; }
 .btn-sm{ padding:5px 9px; font-size:var(--fs-sm); }
 .btn-block{ display:block; width:100%; }

@@ -1051,7 +1051,33 @@
     pendingImport = null;
     closeModal();
     renderTable(); schedulePreview(); doSave();
+
+    /* Kalau file yang diimpor cuma punya Prefix lokasi, barisnya akan
+       tercetak bertanda "Lokasi belum diset" dan itu mudah terlewat di
+       pratinjau. Jadi diberi tahu di sini, sekalian ditunjukkan tombol
+       mana yang mengisinya — bukan dibiarkan ketahuan sendiri. */
+    var perluLokasi = 0, i;
+    for (i = 0; i < got.length; i++) {
+      if (D.belumLokasiFinal(got[i]) && String(got[i].prefix || '').trim()) perluLokasi++;
+    }
+    if (perluLokasi) {
+      toast(got.length + ' baris dimasukkan · ' + perluLokasi +
+            ' di antaranya punya Prefix lokasi tapi belum punya Lokasi final. ' +
+            'Tekan "Generate lokasi" untuk mengisinya.');
+      sorotTombol('btnGenLok');
+      return;
+    }
     toast(got.length + ' baris dimasukkan.');
+  }
+
+  /* Menyorot satu tombol sebentar supaya mata tahu harus ke mana. */
+  function sorotTombol(id) {
+    var n = $(id);
+    if (!n) return;
+    n.className = n.className.replace(/ ?disorot/g, '');
+    void n.offsetWidth;
+    n.className += ' disorot';
+    setTimeout(function () { n.className = n.className.replace(/ ?disorot/g, ''); }, 3200);
   }
 
   /* ========================== BASIS DATA ==========================

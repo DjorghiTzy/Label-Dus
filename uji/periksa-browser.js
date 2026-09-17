@@ -523,11 +523,16 @@ function cek(nama, syarat, tambahan) {
           return page.evaluate(function () {
             var D = window.LG.data, T = window.LG.tpl;
             var baris = D.sampleRows();
-            var acc = null, kosong = null, i;
+            var acc = null, i;
             for (i = 0; i < baris.length; i++) {
               if (baris[i].barcode === '194644167882') acc = baris[i];
-              if (!String(baris[i].lokasi || '').trim() && !kosong) kosong = baris[i];
             }
+            /* Seluruh data contoh sekarang punya lokasi final, jadi baris
+               "belum diset" dibuat di sini saja — yang diperiksa memang
+               perilaku templatenya, bukan isi data contohnya. */
+            var kosong = D.blank();
+            kosong.prefix = 'A-CHR'; kosong.barcode = '194644999999';
+            kosong.sku = 'Contoh SKU tanpa lokasi final';
             /* baris dengan prefix tersalin ke kolom lokasi final */
             var palsu = D.blank();
             palsu.prefix = 'A-CHR'; palsu.lokasi = 'A-CHR';
@@ -834,6 +839,11 @@ function cek(nama, syarat, tambahan) {
         return {
           jumlah: R.length,
           tanpaLokasi: R.filter(function (r) { return D.belumLokasiFinal(r); }).length,
+          tanpaBagian: R.filter(function (r) { return !r.rak || !r.baris || !r.posisi; }).length,
+          kembar: D.lokasiKembar(R).length,
+          prefixCocok: R.filter(function (r) {
+            return r.prefix && r.lokasi.indexOf(r.prefix + '-') === 0;
+          }).length,
           prefix: Object.keys(pre).length,
           lengkap: R.filter(function (r) {
             return r.barcode && r.sku && r.brand && r.tipe && r.golongan && r.prefix &&
@@ -850,12 +860,83 @@ function cek(nama, syarat, tambahan) {
       cek('data contoh berisi 30 baris', r.jumlah === 30, r.jumlah + ' baris');
       cek('semua kolom penting terisi', r.lengkap >= 27, r.lengkap + '/30 lengkap');
       cek('ada beberapa prefix berbeda', r.prefix >= 5, r.prefix + ' prefix');
-      cek('ada baris tanpa lokasi final untuk mencoba generator',
-          r.tanpaLokasi === 3, r.tanpaLokasi + ' baris');
+      cek('semua baris contoh punya Lokasi final', r.tanpaLokasi === 0, r.tanpaLokasi + ' kosong');
+      cek('Rak/Baris/Posisi terisi di semua baris contoh',
+          r.tanpaBagian === 0, r.tanpaBagian + ' kosong');
+      cek('tidak ada lokasi contoh yang kembar', r.kembar === 0, r.kembar + ' kembar');
+      cek('setiap lokasi diawali prefiksnya sendiri', r.prefixCocok === 30, r.prefixCocok + '/30');
       cek('ada contoh REVIEW TIPE dan REVIEW BARCODE',
           r.adaReviewTipe && r.adaReviewBarcode);
       cek('ada baris bergaya dus untuk template Label dus', r.adaDus >= 8, r.adaDus + ' baris');
       cek('QR Payload sudah terisi untuk yang punya lokasi', r.qrIsi >= 24, r.qrIsi + ' baris');
+    })
+
+    /* ---- impor yang barisnya belum punya lokasi final ----
+       Ini keadaan yang benar-benar terjadi: file lama yang belum punya
+       kolom Lokasi Final. Barisnya masuk, tapi pengguna harus tahu apa
+       langkah berikutnya — bukan ketahuan sendiri di pratinjau. */
+    .then(function () {
+      console.log('\n== Impor tanpa kolom Lokasi Final ==');
+      return page.click('#tabData')
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () {
+          /* file contoh dipetakan tanpa kolom lokasi */
+          return page.evaluate(function () {
+            var D = window.LG.data;
+            var judul = ['Barcode', 'Name', 'Prefix Lokasi', 'Brand', 'Tipe'];
+            var isi = [judul.join('\t')], i;
+            for (i = 0; i < 12; i++) {
+              isi.push(['89900' + (100 + i), 'Barang uji ' + i,
+                        i % 2 ? 'A-CHR' : 'B-CCH', 'Uji', 'T' + i].join('\t'));
+            }
+            return isi.join('\n');
+          });
+        })
+        .then(function (teks) {
+          return page.click('#btnPaste')
+            .then(function () { return page.waitForTimeout(400); })
+            .then(function () { return page.fill('#pasteBox', teks); })
+            .then(function () { return page.click('#pasteOk'); })
+            .then(function () { return page.waitForTimeout(800); })
+            .then(function () { return page.evaluate(function () { document.getElementById('mapReplace').checked = true; }); })
+            .then(function () { return page.click('#mapOk'); })
+            .then(function () { return page.waitForTimeout(900); });
+        })
+        .then(function () {
+          return page.evaluate(function () {
+            var D = window.LG.data, R = D.load('cv').rows;
+            return {
+              jumlah: R.length,
+              belum: R.filter(function (r) { return D.belumLokasiFinal(r); }).length,
+              toast: document.getElementById('toast').textContent,
+              disorot: /disorot/.test(document.getElementById('btnGenLok').className)
+            };
+          });
+        })
+        .then(function (r) {
+          cek('barisnya tetap masuk', r.jumlah === 12, r.jumlah + ' baris');
+          cek('pengguna diberi tahu berapa yang belum punya lokasi',
+              /belum punya Lokasi final/i.test(r.toast) && /12/.test(r.toast), r.toast.slice(0, 90));
+          cek('tombol Generate lokasi ikut disorot', r.disorot === true);
+        })
+        .then(function () { return page.click('#btnGenLok'); })
+        .then(function () { return page.waitForTimeout(900); })
+        .then(function () {
+          return page.evaluate(function () {
+            var D = window.LG.data, R = D.load('cv').rows;
+            return {
+              belum: R.filter(function (r) { return D.belumLokasiFinal(r); }).length,
+              kembar: D.lokasiKembar(R).length,
+              contohA: R.filter(function (r) { return r.prefix === 'A-CHR'; })
+                        .map(function (r) { return r.lokasi; }).sort()[0]
+            };
+          });
+        })
+        .then(function (r) {
+          cek('setelah ditekan, semuanya punya lokasi', r.belum === 0, r.belum + ' tersisa');
+          cek('tidak ada yang kembar', r.kembar === 0, r.kembar + ' kembar');
+          cek('lokasinya berbentuk benar', r.contohA === 'A-CHR-R01-B01-P01', r.contohA);
+        });
     })
 
     /* ---- jaringan & error ---- */
