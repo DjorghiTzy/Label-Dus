@@ -336,6 +336,67 @@ function cek(nama, syarat, tambahan) {
         .then(function () { return page.waitForTimeout(200); })
         .then(function () { return page.evaluate(function () { return document.getElementById('tip').hidden; }); })
         .then(function (h) { cek('Escape menutup daftar', h === true); })
+        /* satu huruf sudah cukup, dan kata kunci umum dapat "lihat semua" */
+        .then(function () { return page.click('#inSearch'); })
+        .then(function () { return page.fill('#inSearch', ''); })
+        .then(function () { return page.type('#inSearch', 'a', { delay: 60 }); })
+        .then(function () { return page.waitForTimeout(500); })
+        .then(function () {
+          return page.evaluate(function () {
+            return { produk: document.querySelectorAll('#tip .tip-row:not(.tip-lagi)').length,
+                     lagi: !!document.querySelector('#tip .tip-lagi'),
+                     teks: (document.querySelector('#tip .tip-lagi .nm') || {}).textContent || '' };
+          });
+        })
+        .then(function (r) {
+          cek('satu huruf "a" sudah memunculkan hasil', r.produk > 0, r.produk + ' produk');
+          cek('kata kunci umum dapat baris "lihat semua"', r.lagi, r.teks.slice(0, 44));
+        })
+        /* panah sampai baris terakhir lalu Enter -> katalog terbuka */
+        .then(function () {
+          return page.$$eval('#tip .tip-row', function (n) { return n.length; });
+        })
+        .then(function (n) {
+          var rantai = Promise.resolve();
+          for (var i = 0; i < n; i++) {
+            rantai = rantai.then(function () { return page.keyboard.press('ArrowDown'); });
+          }
+          return rantai;
+        })
+        .then(function () { return page.waitForTimeout(250); })
+        .then(function () {
+          return page.evaluate(function () {
+            var s = document.querySelector('#tip .tip-row.is-on');
+            /* menyorot tidak boleh menghapus kelas lain yang menempel */
+            return s ? s.className.indexOf('tip-lagi') >= 0 : false;
+          });
+        })
+        .then(function (ok) { cek('panah sampai baris "lihat semua", kelasnya tetap utuh', ok); })
+        .then(function () { return page.keyboard.press('Enter'); })
+        .then(function () { return page.waitForTimeout(600); })
+        .then(function () {
+          return page.evaluate(function () {
+            return { buka: !document.getElementById('mKat').hidden,
+                     q: document.getElementById('katCari').value };
+          });
+        })
+        .then(function (r) {
+          cek('Enter membuka katalog dengan kata kuncinya', r.buka && r.q === 'a', 'katCari="' + r.q + '"');
+        })
+        .then(function () { return page.click('#mKat [data-close]'); })
+        .then(function () { return page.waitForTimeout(300); })
+        .then(function () { return page.fill('#inSearch', ''); })
+        .then(function () { return page.waitForTimeout(300); })
+        /* kolom Kadaluarsa sudah dicabut */
+        .then(function () {
+          return page.$$eval('#gridHead th', function (n) {
+            return n.map(function (x) { return x.textContent.trim(); });
+          });
+        })
+        .then(function (kol) {
+          cek('kolom Kadaluarsa sudah tidak ada',
+              !kol.some(function (x) { return /kadaluarsa/i.test(x); }), kol.length + ' kolom');
+        })
         /* bersihkan baris uji sampai benar-benar kembali 60 */
         .then(function () {
           return page.evaluate(function () {
@@ -450,24 +511,9 @@ function cek(nama, syarat, tambahan) {
         .then(function (v) { cek('label dus memakai QR barang', v.indexOf('{sku}') === 0, v); });
     })
 
-    /* ---- kolom kadaluarsa ---- */
+    /* ---- urungkan ---- */
     .then(function () { return page.click('#tabData'); })
     .then(function () { return page.waitForTimeout(400); })
-    .then(function () {
-      return page.evaluate(function () {
-        var th = [].slice.call(document.querySelectorAll('#gridHead th')).map(function (n) { return n.textContent; });
-        return { ada: th.filter(function (t) { return /Kadaluarsa/i.test(t); }).length,
-                 isian: !!document.querySelector('#gridBody input[data-k="kadaluarsa"]') };
-      });
-    })
-    .then(function (r) {
-      console.log('\n== Kolom kadaluarsa ==');
-      cek('kolom Kadaluarsa ada di tabel', r.ada === 1, r.ada + ' kolom');
-      cek('selnya bisa diisi', r.isian);
-    })
-
-    /* ---- urungkan ---- */
-    .then(function () { return page.waitForTimeout(300); })
     .then(function () { return page.click('#btnSplit'); })
     .then(function () { return page.waitForTimeout(500); })
     .then(function () { return page.$$eval('#gridBody tr', function (n) { return n.length; }); })

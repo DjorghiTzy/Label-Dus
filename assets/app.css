@@ -560,6 +560,14 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   padding:5px 8px; color:var(--ink-3); font-size:var(--fs-xs);
   border-top:1px solid var(--line-soft); margin-top:2px;
 }
+/* baris "lihat semua" — jalan ke katalog lengkap saat kata kuncinya umum */
+.tip-row.tip-lagi{
+  border-top:1px solid var(--line-soft);
+  margin-top:2px; font-weight:600;
+}
+.tip-row.tip-lagi .nm{ color:var(--ink); flex:1 1 auto; white-space:normal; }
+.tip-row.tip-lagi .nm b{ color:var(--hi); }
+.tip-row.tip-lagi .st{ color:var(--ink-3); font-family:var(--sans); }
 
 /* seret & lepas + pesan singkat */
 .drop{

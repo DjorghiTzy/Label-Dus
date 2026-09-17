@@ -65,11 +65,6 @@ function petaUntuk(judul) {
 }
 cek('kolom "No" dilewati', petaUntuk('No') === '');
 cek('kolom "Text Dus (x/total)" dilewati', petaUntuk('Text Dus (x/total)') === '');
-cek('kolom "Kadaluarsa" dikenali', petaUntuk('Kadaluarsa') === 'kadaluarsa');
-/* seri 46700 = 574 hari setelah 46126 (14-04-2026) = 09-11-2027 */
-cek('tanggal kadaluarsa terbaca', baris[0].kadaluarsa === '2027-11-09',
-    D.fmtDate(baris[0].kadaluarsa));
-cek('baris tanpa kadaluarsa tetap kosong', baris[1].kadaluarsa === '');
 cek('tidak ada baris tanpa tanggal', baris.filter(function (r) { return !r.tanggal; }).length === 0);
 cek('nilai turunan dusText benar', D.dusText(baris[0]) === 'MC01-1W/1');
 cek('nilai turunan bigCode benar', D.bigCode(baris[0]) === '1061');

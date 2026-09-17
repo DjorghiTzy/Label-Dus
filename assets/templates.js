@@ -474,7 +474,6 @@
     varian:   ['Varian',    function (r) { return r.varian; }],
     tanggal:  ['Tanggal',   function (r) { return D.fmtDate(r.tanggal); }],
     masuk:    ['Masuk',     function (r) { return D.fmtDate(r.tanggal); }],
-    kadaluarsa: ['Kadaluarsa', function (r) { return D.fmtDate(r.kadaluarsa); }],
     pic:      ['PIC',       function (r) { return r.pic; }],
     kode:     ['Kode',      function (r) { return r.kode; }],
     labelId:  ['Label ID',  function (r) { return r.labelId; }],
@@ -504,7 +503,6 @@
     if (src === 'status') return String(row.status || '—').trim();
     if (src === 'zona') return String(row.zona || '—').trim();
     if (src === 'tanggal') return D.fmtDate(row.tanggal) || '—';
-    if (src === 'kadaluarsa') return D.fmtDate(row.kadaluarsa) || '—';
     if (src === 'dus') return D.dusText(row) || '—';
     if (src && row[src] !== undefined) return String(row[src] || '').trim();
     return D.bigCode(row);
@@ -909,20 +907,6 @@
       ]
     }),
 
-    stack({
-      key: 'rakfefo', fam: 'rak', nama: 'Rak FEFO', ukuran: '100 × 38 mm', fixed: true,
-      desc: 'Seperti Rak FIFO, tapi yang besar adalah tanggal kadaluarsa — untuk barang bertanggal.',
-      paper: 'a4', orient: 'portrait', cols: 2, rows: 7,
-      cellW: 100, cellH: 38, margin: 4, gap: 2,
-      opts: { qr: false, barcode: false, meta: true, qrPattern: '{lokasi}|{sku}|{kadaluarsa}' },
-      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25,
-      parts: [
-        { p: 'hero', h: 'fill', src: 'lokasi', size: 3.4, sub: false },
-        { p: 'big2', h: 3.6, key: 'kadaluarsa', label: 'Kadaluarsa', size: 2.2, labSize: .55 },
-        { p: 'meta', h: 1.2, list: ['skuvar', 'qty'], size: .65 }
-      ]
-    }),
-
     {
       key: 'rakprop', fam: 'rak', nama: 'Rak proporsional', ukuran: '2 × 6 per A4',
       cls: 'lbl-rak',
@@ -1092,21 +1076,6 @@
         { p: 'boxes', h: 1.7, items: ['Isi sesuai', 'Segel utuh', 'Jumlah cocok', 'Tidak rusak'], size: .32 },
         { p: 'write', h: 1.0, key: 'pic', label: 'Diperiksa oleh', size: .5, labSize: .25, blank: true },
         { p: 'foot', h: .3, size: .22, right: 'grn' }
-      ]
-    }),
-
-    stack({
-      key: 'dusfefo', fam: 'dus', nama: 'Dus FEFO', ukuran: '2 × 3 per A4',
-      desc: 'Tanggal kadaluarsa paling besar, tanggal masuk di bawahnya. Untuk barang bertanggal.',
-      paper: 'a4', orient: 'portrait', cols: 2, rows: 3, margin: 6, gap: 4,
-      opts: { qr: false, barcode: false, meta: true },
-      mini: [2, 3], band: 'top', bandW: 0.4, padU: 0.35, gapU: 0.22,
-      parts: [
-        { p: 'big2', h: 'fill', key: 'kadaluarsa', label: 'Kadaluarsa', size: 2.2, labSize: .35 },
-        { p: 'rule', h: .05 },
-        { p: 'hero', h: 1.8, size: 1.2, subSize: .4 },
-        { p: 'rows', h: 1.8, list: ['masuk', 'qty'], labW: 1.7, labSize: .26, size: .5 },
-        { p: 'chips', h: .8, only: 'status', size: .5 }
       ]
     }),
 

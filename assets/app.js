@@ -277,7 +277,7 @@
       /* rekomendasi produk muncul sambil mengetik */
       if (k === 'kode' || k === 'varian') {
         var q = inp.value.trim();
-        if (q.length >= 2) tipBuka(inp, q); else tipTutup();
+        if (q.length >= 1) tipBuka(inp, q); else tipTutup();
       }
     });
 
@@ -1031,6 +1031,8 @@
      sepuluh teratas. ==================================================== */
   var tipHasil = [], tipAktif = -1, tipInput = null, tipBaris = -1;
   var tipMode = 'sel';          /* 'sel' = isi baris ini | 'cari' = tambah baris baru */
+  var tipLagi = false;          /* ada baris "lihat semua" di bawah daftar */
+  var tipQ = '';
   var TIP_MAX = 10;
 
   function tipTutup() {
@@ -1039,6 +1041,7 @@
     tip.hidden = true;
     tip.innerHTML = '';                /* jangan sisakan hasil lama */
     tipHasil = []; tipAktif = -1; tipInput = null; tipBaris = -1;
+    tipLagi = false; tipQ = '';
   }
 
   function tipTebal(teks, q) {
@@ -1069,7 +1072,7 @@
     var res = D.cariProduk(q, D.dbGet(), TIP_MAX);
     if (!res.hasil.length) { tipTutup(); return; }
 
-    tipHasil = res.hasil; tipAktif = -1; tipInput = inp;
+    tipHasil = res.hasil; tipAktif = -1; tipInput = inp; tipQ = q;
     tipMode = mode || 'sel';
     if (tipMode === 'sel') {
       var tr = inp.parentNode.parentNode;
@@ -1087,8 +1090,16 @@
              '<span class="nm">' + tipTebal(pr[1], q) + '</span>' +
              '<span class="st">' + T.esc(pr[2] + (sat ? ' ' + sat : '')) + '</span></div>');
     }
+    /* Kalau hasilnya jauh lebih banyak daripada yang muat, sediakan jalan
+       ke katalog lengkap — bukan cuma menyuruh mengetik lebih panjang.
+       Barisnya ikut bisa dipilih dengan panah dan Enter. */
+    tipLagi = res.cocok > tipHasil.length;
+    if (tipLagi) {
+      h.push('<div class="tip-row tip-lagi" role="option" data-i="' + tipHasil.length + '">' +
+             '<span class="nm">Lihat semua <b>' + res.cocok + '</b> produk yang cocok dengan "' +
+             T.esc(q) + '"</span><span class="st">buka katalog &#8594;</span></div>');
+    }
     h.push('<div class="tip-foot">' +
-           (res.cocok > tipHasil.length ? res.cocok + ' produk cocok — ketik lebih panjang. ' : '') +
            (tipMode === 'cari'
               ? 'Enter atau klik untuk menambahkan sebagai baris label baru.'
               : 'Enter atau klik untuk mengisi baris ini.') +
@@ -1134,7 +1145,8 @@
     if (n >= baris.length) n = 0;
     tipAktif = n;
     for (var i = 0; i < baris.length; i++) {
-      baris[i].className = 'tip-row' + (i === n ? ' is-on' : '');
+      var c = baris[i].className.replace(/\s*is-on\b/g, '');
+      baris[i].className = c + (i === n ? ' is-on' : '');
     }
     if (baris[n].scrollIntoView) baris[n].scrollIntoView({ block: 'nearest' });
   }
@@ -1142,6 +1154,13 @@
   /* Memilih rekomendasi mengisi seluruh kolom produk — ini pilihan
      sadar pengguna, jadi boleh menimpa isi sebelumnya. */
   function tipPilih(n) {
+    /* baris terakhir = "lihat semua", bukan produk */
+    if (tipLagi && n === tipHasil.length) {
+      var q = tipQ;
+      tipTutup();
+      bukaKatalog(q);
+      return;
+    }
     var pr = tipHasil[n];
     if (!pr) { tipTutup(); return; }
 
@@ -1180,9 +1199,9 @@
   /* ========================= KATALOG PRODUK ========================= */
   var katPilih = {};
 
-  function bukaKatalog() {
+  function bukaKatalog(q) {
     katPilih = {};
-    $('katCari').value = '';
+    $('katCari').value = q || '';
     var info = D.dbInfo(D.dbGet());
     $('katJudul').textContent = 'Cari produk — ' + info.nama;
     renderKatalog();
@@ -1549,6 +1568,9 @@
       markUndo('tambah baris');
       rows.push(D.newRow(rows.length ? rows[rows.length - 1] : null));
       D.fillMissingIds(rows);
+      /* baris kosong tidak akan cocok dengan saringan yang sedang aktif,
+         jadi ia akan langsung tersembunyi kalau saringannya dibiarkan */
+      if (filters.q) { filters.q = ''; $('inSearch').value = ''; tipTutup(); }
       renderTable(); schedulePreview(); doSave();
       var last = el('#gridBody tr:last-child input[data-k="kode"]');
       if (last) { last.focus(); last.select(); }
@@ -1748,11 +1770,11 @@
       /* Mengetik di sini bukan cuma menyaring baris yang sudah ada —
          katalog produk ikut dicari, supaya bisa langsung menambah
          barang yang belum pernah dimasukkan. */
-      if (filters.q.length >= 2) tipBuka(this, filters.q, 'cari');
+      if (filters.q.length >= 1) tipBuka(this, filters.q, 'cari');
       else tipTutup();
     });
     on($('inSearch'), 'focus', function () {
-      if (this.value.trim().length >= 2) tipBuka(this, this.value.trim(), 'cari');
+      if (this.value.trim().length >= 1) tipBuka(this, this.value.trim(), 'cari');
     });
     on($('inSearch'), 'blur', function () {
       setTimeout(function () { if (tipMode === 'cari') tipTutup(); }, 160);

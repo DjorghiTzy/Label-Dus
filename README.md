@@ -35,8 +35,8 @@ dengan nama dan stoknya.
 ### Rekomendasi sambil mengetik
 
 Ketik di **kotak pencarian** di atas tabel — bahkan saat daftarnya masih
-kosong. Mulai dari dua huruf, produk yang cocok langsung muncul, dan
-Enter menambahkannya sebagai baris label baru.
+kosong. **Satu huruf sudah cukup**: ketik `a`, produk yang cocok langsung
+muncul, dan Enter menambahkannya sebagai baris label baru.
 
 Kotak yang sama tetap menyaring baris yang sudah ada, jadi ia melayani
 dua hal sekaligus: mencari di daftar Anda, dan mencari di katalog.
@@ -59,6 +59,11 @@ ada — di situ rekomendasinya mengisi baris itu, bukan menambah baris.
 Kaki daftarnya selalu menyebut apa yang akan terjadi — "menambahkan
 sebagai baris label baru" atau "mengisi baris ini" — supaya tidak
 tertukar.
+
+**Kalau kata kuncinya umum**, di bawah daftar muncul baris
+**"Lihat semua N produk yang cocok"**. Menekannya membuka katalog lengkap
+dengan kata kunci itu sudah terisi — jadi mengetik satu huruf pun tetap
+ada jalan keluarnya, bukan cuma sepuluh teratas.
 
 Memilih rekomendasi mengisi Kode, nama produk, dan qty sekaligus. Kalau
 Anda hanya mengetik barcode lengkap lalu pindah sel, pengisian tetap
@@ -183,12 +188,12 @@ dengan penggaris sungguhan:
 
 ## Template label
 
-Ada **dua keluarga** berisi 30 template. Tab **Label rak / Label dus** di
+Ada **dua keluarga** berisi 28 template. Tab **Label rak / Label dus** di
 atas pemilih memisahkan keduanya, dan tab itu menempel di atas panel —
 tidak ikut tergulir hilang saat menelusuri daftar template.
 Yang dipilih tersimpan, jadi besok aplikasi terbuka di keluarga yang sama.
 
-### Label rak — 15 template
+### Label rak — 14 template
 
 Ditempel di bibir rak, tiang, atau lorong. Isi utamanya **kode lokasi**,
 dibuat sebesar mungkin karena dibaca sambil berjalan.
@@ -204,14 +209,13 @@ dibuat sebesar mungkin karena dibaca sambil berjalan.
 | Papan lorong | 1 per A4 mendatar | 1 | Papan gantung penanda lorong |
 | Label tiang | 25 × 100 mm tegak | 14 | Tiang rak, dibaca dari samping |
 | Rak FIFO | 100 × 38 mm | 14 | Tanggal masuk besar, stok lama diambil duluan |
-| Rak FEFO | 100 × 38 mm | 14 | Tanggal kadaluarsa besar, untuk barang bertanggal |
 | Rak QR | 2 × 6 per A4 | 12 | Gudang yang serba scan |
 | Rak barcode | 2 × 8 per A4 | 16 | Pemindai laras |
 | Rak blok warna | 2 × 6 per A4 | 12 | Membagi gudang jadi area berwarna |
 | Papan bin | 1 × 4 per A4 | 4 | Papan selebar kertas untuk satu bin |
 | Rak proporsional | 2 × 6 per A4 | 12 | Kertas tidak baku — ukuran ikut kertas |
 
-### Label dus — 15 template
+### Label dus — 14 template
 
 Ditempel di sisi dus. Isi utamanya **kode barang**, ditambah qty, nomor
 dus, dan kolom lokasi untuk ditulis tangan.
@@ -230,7 +234,6 @@ dus, dan kolom lokasi untuk ditulis tangan.
 | Kartu gantung | 2 × 2 per A4 | 4 | Kartu status berlubang |
 | Dus barang pecah | 2 × 2 per A4 | 4 | Tanda stensil: jangan dibanting, jauhkan dari air |
 | Dus FIFO | 2 × 3 per A4 | 6 | Stok yang keluar menurut urutan datang |
-| Dus FEFO | 2 × 3 per A4 | 6 | Tanggal kadaluarsa besar, untuk barang bertanggal |
 | Dus periksa QC | 2 × 3 per A4 | 6 | Ada kotak centang, dicentang langsung di dus |
 | Dus rute simpan | 2 × 2 per A4 | 4 | Dari supplier menuju lokasi rak |
 
@@ -331,19 +334,6 @@ template:
 - **Pemeriksa di browser** membuka setiap template dan memastikan tidak
   ada isi yang terpotong, baik keluar dari label maupun di dalam
   bagiannya sendiri.
-
-### Kolom Kadaluarsa
-
-Selain Tanggal (tanggal terima), ada kolom **Kadaluarsa**. Keduanya
-menerima angka seri Excel maupun tulisan `30-01-2027` dan `30/01/2027`.
-Nama kolom yang dikenali saat impor: `Kadaluarsa`, `Kedaluwarsa`,
-`Expired`, `Exp`, `Exp Date`, `Best Before`, `Masa Berlaku`,
-`Berlaku Sampai`.
-
-Dua template memakainya sebagai isi terbesar: **Rak FEFO** dan
-**Dus FEFO**. Bedanya dengan FIFO: FIFO memakai tanggal terima (yang
-datang duluan keluar duluan), FEFO memakai tanggal kadaluarsa (yang
-kadaluarsa duluan keluar duluan).
 
 ### Menambah kolom data baru
 
@@ -513,7 +503,15 @@ dicatat di sini:
    Sekarang tampilannya benar-benar bergeser mengikuti urutan tabnya, dan
    satu keping penanda meluncur di belakang tombol yang aktif, termasuk
    pada pemilih CV/OL.
-27. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+27. **Kolom Kadaluarsa dicabut kembali.** Kolom itu saya tambahkan atas
+   inisiatif sendiri, bukan diminta. Setelah dinilai tidak terpakai, ia
+   dicabut sampai ke akarnya — alias impor, ekspor, file contoh, dan dua
+   template FEFO yang berdiri di atasnya. Template kembali 28.
+28. **Kata kunci umum diberi jalan keluar, bukan disuruh mengetik lebih
+   panjang.** Mengetik satu huruf wajar dilakukan; menyuruh orang
+   memperpanjang ketikannya bukan jawaban. Baris "Lihat semua N produk"
+   membuka katalog lengkap dengan kata kunci itu sudah terisi.
+29. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
@@ -580,22 +578,24 @@ Rinciannya ada di `uji/README.md`.
 | `uji/periksa-browser.js` berhenti rapi tanpa Playwright | lolos, keluar dengan kode 0 |
 | Layar 390 px | semua tombol terjangkau, halaman tidak menggulir ke samping |
 | `console.error` sepanjang alur impor → edit → saring → cetak | tidak ada |
-| 30 template, isi tidak melebihi kotak label | lolos |
-| 30 template, tidak ada isi terpotong di dalam bagiannya | lolos |
-| Anggaran tinggi 10u untuk 21 template bermesin bersama | lolos |
+| 28 template, isi tidak melebihi kotak label | lolos |
+| 28 template, tidak ada isi terpotong di dalam bagiannya | lolos |
+| Anggaran tinggi 10u untuk 19 template bermesin bersama | lolos |
 | Cetak ulang lembar 7–9: pratinjau, penghitung, dan hasil cetak sama-sama 3 lembar | lolos |
 | Pola QR berbeda antara keluarga rak dan dus | lolos |
-| Kolom Kadaluarsa ada dan bisa diisi | lolos |
 | Katalog CV (731) dan OL (245) termuat | lolos |
 | Pindah basis data: datanya benar-benar terpisah | lolos |
 | Tambah produk dari katalog jadi baris label | lolos |
 | Ketik barcode mengisi nama produk otomatis | lolos |
 | Rekomendasi muncul sambil mengetik, bagian cocok ditebalkan | lolos |
+| Satu huruf "a" sudah memunculkan hasil | lolos |
+| Kata kunci umum dapat baris "Lihat semua 660 produk" | lolos |
+| Baris itu bisa dipanah dan membuka katalog dengan kata kuncinya | lolos |
 | ↓/↑ dan Enter memilih rekomendasi | lolos |
 | Pencarian per kata: "ugreen hub" ketemu 4, dulu 0 | lolos |
 | Dialog konfirmasi sendiri, bukan `window.confirm` | lolos |
 | Lokasi panjang dipatahkan dua baris, tidak menyusut jadi 3,38 mm | lolos |
-| 15 template rak: tidak ada elemen yang tumpang tindih | lolos |
+| 14 template rak: tidak ada elemen yang tumpang tindih | lolos |
 | Dijalankan lewat HTTP (server statis), bukan hanya `file://` | hasil sama persis |
 | Label tiang 25 × 100 mm (isi diputar 90°) | terukur 25 mm, jarak baris 27 mm |
 | Banner 100 × 140 mm | terukur 100 × 140 mm, 4 per A4, 60 label = 15 lembar |
