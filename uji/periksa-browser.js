@@ -7,8 +7,13 @@
    pesan, bukan error — aplikasinya sendiri tetap tanpa pustaka apa pun.
 
    Yang diperiksa:
+   Bisa diarahkan ke alamat lain, misalnya untuk memeriksa hasil deploy
+   atau server statis:
+
+       BASIS=http://localhost:8080 node uji/periksa-browser.js
+
    - ketiga pustaka vendor termuat dari file lokal
-   - tidak ada satu pun permintaan jaringan keluar
+   - tidak ada satu pun permintaan jaringan keluar (selain ke asal sendiri)
    - tidak ada console.error sepanjang alur
    - seluruh template: isinya tidak keluar dari kotak label, DAN tidak
      terpotong di dalam bagiannya sendiri (ini tidak terlihat dari luar
@@ -21,7 +26,8 @@
 'use strict';
 var path = require('path');
 var ROOT = path.join(__dirname, '..');
-var MM = 96 / 25.4;
+var BASIS = process.env.BASIS || ('file://' + ROOT);
+var ASAL = BASIS.replace(/\/+$/, '');
 
 function muatPlaywright() {
   var kandidat = ['playwright', 'playwright-core',
@@ -49,6 +55,7 @@ function cek(nama, syarat, tambahan) {
 }
 
 (function () {
+  console.log('Memeriksa: ' + ASAL);
   return pw.chromium.launch().then(function (browser) {
     var errs = [], reqs = [], page;
 
@@ -56,9 +63,15 @@ function cek(nama, syarat, tambahan) {
       page = p;
       page.on('pageerror', function (e) { errs.push('pageerror: ' + e.message); });
       page.on('console', function (m) { if (m.type() === 'error') errs.push('console: ' + m.text()); });
-      page.on('request', function (r) { if (r.url().indexOf('file://') !== 0) reqs.push(r.url()); });
+      /* permintaan ke asal sendiri wajar saat dilayani lewat HTTP;
+         yang dicari adalah permintaan ke luar, misalnya ke CDN font */
+      page.on('request', function (r) {
+        var u = r.url();
+        if (u.indexOf('file://') === 0 || u.indexOf(ASAL) === 0) return;
+        reqs.push(u);
+      });
 
-      return page.goto('file://' + ROOT + '/index.html');
+      return page.goto(ASAL + '/index.html');
     })
     .then(function () { return page.waitForTimeout(400); })
     .then(function () { return page.evaluate(function () { try { localStorage.clear(); } catch (e) {} }); })
@@ -79,7 +92,7 @@ function cek(nama, syarat, tambahan) {
     })
 
     /* ---- impor contoh ---- */
-    .then(function () { return page.setInputFiles('#fileIn', ROOT + '/contoh/Format_Label_Dus.xlsx'); })
+    .then(function () { return page.setInputFiles('#fileIn', path.join(ROOT, 'contoh/Format_Label_Dus.xlsx')); })
     .then(function () { return page.waitForTimeout(1000); })
     .then(function () { return page.click('#mapOk'); })
     .then(function () { return page.waitForTimeout(700); })

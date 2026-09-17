@@ -1,0 +1,8 @@
+# Berkas yang tidak perlu ikut dikirim ke hosting statis.
+# Semuanya tetap ada di repo — hanya tidak ikut dilayani ke pengunjung.
+
+# alat bantu pengembang, tidak pernah dimuat index.html
+uji/
+
+# versi lama satu-file, disimpan sebagai arsip saja
+arsip/
