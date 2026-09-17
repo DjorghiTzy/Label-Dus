@@ -190,6 +190,13 @@ aplikasi langsung memberi tahu berapa yang belum punya lokasi dan
 menyorot tombol **Generate lokasi**. Jadi tidak ada lagi yang baru
 ketahuan saat melihat pratinjau penuh tulisan "Lokasi belum diset".
 
+Kalau label rak keluar bertuliskan **"Lokasi belum diset"** padahal
+kolomnya jelas terisi, periksa centang **"Kosongkan kolom lokasi untuk
+ditulis tangan"** di panel cetak — itu memang sengaja tidak mencetak
+lokasi yang tersimpan. Dengan centang itu, label rak mencetak kotak
+bergaris beserta prefiksnya untuk ditulis pakai spidol, bukan
+peringatan.
+
 Tombol **Print label rak** mencetak baris yang dicentang memakai lokasi
 yang sudah tersimpan. Tidak ada lokasi yang dibuat di jalur cetak; baris
 tanpa Lokasi final diperingatkan dulu.
