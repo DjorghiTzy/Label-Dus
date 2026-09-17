@@ -271,6 +271,25 @@
   font-size:calc(4.4mm * var(--k)); letter-spacing:.06em;
   white-space:nowrap; overflow:hidden;
 }
+/* Sengaja dikosongkan untuk ditulis tangan. Kotak bergaris, bukan
+   peringatan — datanya ada, cuma tidak ikut dicetak. */
+.lbl-rak100 .r-tulis{
+  display:flex; align-items:baseline; gap:2mm;
+  border:0.45mm solid #000; border-radius:1.4mm;
+  padding:0.6mm 2mm 1.4mm;
+  min-width:0; overflow:hidden;
+}
+.lbl-rak100 .r-tulis b{
+  flex:none;
+  font-size:calc(2.6mm * var(--k));
+  font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+}
+.lbl-rak100 .r-tulis span{
+  flex:1 1 auto; min-width:0;
+  font-family:var(--disp); font-weight:700; line-height:1;
+  font-size:calc(6mm * var(--k));
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 .lbl-rak100 .r-pre{
   font-size:calc(2.6mm * var(--k)); font-family:var(--mono);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;

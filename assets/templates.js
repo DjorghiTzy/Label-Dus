@@ -118,11 +118,22 @@
     return String(row.kodeDus || '').trim() || D.bigCode(row);
   }
 
+  /* Lokasi final baris ini, apa adanya — tanpa melihat pilihan cetak. */
+  function lokasiData(row) {
+    return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '').trim();
+  }
+
+  /* Lokasi yang dicetak. Dua hal yang kelihatannya sama tapi artinya
+     berbeda jauh:
+       - blankLokasi: pengguna MEMILIH mengosongkan kolomnya untuk
+         ditulis tangan. Datanya ada, cuma sengaja tidak dicetak.
+       - lokasi finalnya memang belum ada.
+     Yang pertama bukan masalah dan tidak boleh diberi peringatan. */
   function lokasiOf(row, o) {
     if (o.blankLokasi) return '';
     /* Selalu lewat data.js: prefix (A-CHR) tidak pernah lolos sebagai
        lokasi final, dan R/B/P tidak pernah dikarang aplikasi. */
-    return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '').trim();
+    return lokasiData(row);
   }
 
   function subOf(row) {
@@ -171,7 +182,10 @@
      ================================================================== */
   function renderRak100(row, o) {
     var lok = lokasiOf(row, o);
-    var belum = !lok;
+    /* Dikosongkan sendiri untuk ditulis tangan ITU BUKAN "belum diset".
+       Peringatan hanya untuk baris yang lokasi finalnya memang belum ada. */
+    var dikosongkan = !!o.blankLokasi;
+    var belum = !dikosongkan && !lokasiData(row);
     var useQr = o.qr && qrOK;
 
     /* Urutan baca di lorong: lokasi dulu, baru nama barang, baru tipe dan
@@ -202,7 +216,14 @@
     var pita = String(row.area || '').trim() || String(row.zona || '').trim();
 
     var hero;
-    if (belum) {
+    if (dikosongkan) {
+      /* Sengaja dikosongkan: yang dicetak kotak bergaris untuk ditulis
+         pakai spidol, bukan peringatan. Prefiksnya ikut dicetak kecil
+         supaya yang menulis tahu awalan yang benar. */
+      var preK = String(row.prefix || '').trim();
+      hero = '<div class="r-tulis"><b>Lokasi rak</b><span>' +
+             (preK ? esc(preK) + '-' : '&nbsp;') + '</span></div>';
+    } else if (belum) {
       /* Lokasi final belum diisi. Prefix (A-CHR) ditampilkan sebagai
          keterangan, bukan sebagai alamat — label ini memang belum siap
          tempel, dan itu harus kelihatan sebelum orang menempelnya. */

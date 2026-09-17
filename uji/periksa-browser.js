@@ -948,6 +948,65 @@ function cek(nama, syarat, tambahan) {
         });
     })
 
+    /* ---- "kosongkan kolom lokasi" bukan "lokasi belum diset" ----
+       Dua hal yang kelihatannya sama di layar tapi artinya berbeda jauh:
+       pengguna memilih mengosongkan kolomnya, versus datanya memang
+       belum ada. Yang pertama tidak boleh diberi peringatan. */
+    .then(function () {
+      console.log('\n== Kosongkan kolom lokasi ==');
+      return page.evaluate(function () {
+        window.LG.data.save({ rows: window.LG.data.sampleRows(), opts: {} }, 'cv');
+      })
+        .then(function () { return page.reload(); })
+        .then(function () { return page.waitForTimeout(900); })
+        .then(function () { return page.click('#tabPrint'); })
+        .then(function () { return page.waitForTimeout(800); })
+        .then(function () { return page.click('[data-fam="rak"]'); })
+        .then(function () { return page.waitForTimeout(300); })
+        .then(function () { return page.click('[data-tpl="rak100"]'); })
+        .then(function () { return page.waitForTimeout(900); })
+        .then(function () {
+          return page.evaluate(function () {
+            var l = document.querySelector('#stage .lbl');
+            return { teks: l.textContent, peringatan: /belum diset/i.test(l.textContent) };
+          });
+        })
+        .then(function (r) {
+          cek('lokasi tersimpan tampil di label', /A-CHR-R01-B01-P01/.test(r.teks), r.teks.slice(0, 40));
+          cek('tidak ada peringatan palsu', r.peringatan === false);
+        })
+        .then(function () { return page.check('#chkBlankLokasi'); })
+        .then(function () { return page.waitForTimeout(900); })
+        .then(function () {
+          return page.evaluate(function () {
+            var l = document.querySelector('#stage .lbl');
+            return {
+              peringatan: /belum diset/i.test(l.textContent),
+              kotakTulis: !!l.querySelector('.r-tulis'),
+              adaPrefix: /A-CHR-/.test(l.textContent),
+              adaLokasiPenuh: /A-CHR-R01-B01-P01/.test(l.textContent)
+            };
+          });
+        })
+        .then(function (r) {
+          cek('dikosongkan sendiri tidak diberi peringatan', r.peringatan === false);
+          cek('yang tercetak kotak bergaris untuk ditulis tangan', r.kotakTulis === true);
+          cek('prefiksnya ikut tercetak sebagai awalan', r.adaPrefix === true);
+          cek('lokasi penuhnya memang tidak ikut dicetak', r.adaLokasiPenuh === false);
+        })
+        .then(function () { return page.uncheck('#chkBlankLokasi'); })
+        .then(function () { return page.waitForTimeout(900); })
+        .then(function () {
+          return page.evaluate(function () {
+            return document.querySelector('#stage .lbl').textContent;
+          });
+        })
+        .then(function (t) {
+          cek('centangnya dilepas, lokasinya kembali utuh',
+              /A-CHR-R01-B01-P01/.test(t), t.slice(0, 40));
+        });
+    })
+
     /* ---- jaringan & error ---- */
     .then(function () {
       console.log('\n== Jaringan & error ==');
