@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Label Dus &amp; Rak — Label Gudang</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/label.css">
+<!-- Diisi oleh app.js: @page mengikuti ukuran kertas yang dipilih -->
+<style id="pageStyle"></style>
+</head>
+<body>
+
+<div id="shell">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-text">
+        <b>Label Dus &amp; Rak</b>
+        <small>Cetak label gudang siap tempel</small>
+      </span>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Bagian aplikasi">
+      <button type="button" class="tab is-on" id="tabData" role="tab" aria-selected="true" aria-controls="viewData">Data label</button>
+      <button type="button" class="tab" id="tabPrint" role="tab" aria-selected="false" aria-controls="viewPrint">Template &amp; cetak</button>
+    </nav>
+
+    <div class="topright">
+      <span class="savenote" id="saveNote">Belum disimpan</span>
+      <button type="button" class="iconbtn" id="btnTheme" title="Ganti tema terang / gelap" aria-label="Ganti tema">◐</button>
+      <button type="button" class="iconbtn" id="btnHelp" title="Bantuan" aria-label="Bantuan">?</button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ============================ TAB 1 : DATA ============================ -->
+    <section class="view is-on" id="viewData" role="tabpanel" aria-labelledby="tabData">
+
+      <div class="toolbar">
+        <button type="button" class="btn btn-primary" id="btnAdd">+ Baris</button>
+        <button type="button" class="btn" id="btnImport">Impor Excel / CSV</button>
+        <button type="button" class="btn" id="btnPaste">Tempel dari Excel</button>
+        <button type="button" class="btn" id="btnSplit" title="Satu baris dengan Total Dus 5 menjadi 5 baris">Pecah per dus</button>
+        <button type="button" class="btn" id="btnRenum" title="Isi ulang seluruh Label ID berurutan">Nomori ulang</button>
+        <button type="button" class="btn" id="btnDupSel" title="Gandakan baris tercentang">Gandakan</button>
+        <button type="button" class="btn btn-danger" id="btnDelSel" title="Hapus baris tercentang">Hapus</button>
+
+        <span class="tb-sep" aria-hidden="true"></span>
+
+        <div class="menu" id="menuExport">
+          <button type="button" class="btn" id="btnExport" aria-haspopup="true" aria-expanded="false">Ekspor &amp; cadangan ▾</button>
+          <div class="menu-pop" role="menu">
+            <button type="button" role="menuitem" data-act="xlsx">Simpan sebagai Excel (.xlsx)</button>
+            <button type="button" role="menuitem" data-act="csv">Simpan sebagai CSV (.csv)</button>
+            <button type="button" role="menuitem" data-act="json">Buat cadangan (.json)</button>
+            <button type="button" role="menuitem" data-act="restore">Pulihkan dari cadangan…</button>
+            <button type="button" role="menuitem" data-act="sample">Isi dengan data contoh</button>
+            <button type="button" role="menuitem" class="danger" data-act="clear">Kosongkan semua data</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="filterbar">
+        <label class="search">
+          <span class="search-ico" aria-hidden="true">⌕</span>
+          <input type="search" id="inSearch" placeholder="Cari kode, SKU, supplier, lokasi…" aria-label="Cari data label">
+        </label>
+        <select id="fZona" class="sel" aria-label="Saring menurut zona"><option value="">Semua zona</option></select>
+        <select id="fStatus" class="sel" aria-label="Saring menurut status"><option value="">Semua status</option></select>
+        <label class="chk"><input type="checkbox" id="fOnlyChecked"> <span>Hanya yang dicentang</span></label>
+        <span class="grow"></span>
+        <span class="pill" id="pillCount">0 baris</span>
+      </div>
+
+      <div class="tablewrap" id="tableWrap">
+        <table class="grid" id="grid">
+          <thead id="gridHead"></thead>
+          <tbody id="gridBody"></tbody>
+        </table>
+      </div>
+
+      <div class="empty" id="emptyState" hidden>
+        <div class="empty-inner">
+          <h2>Belum ada data label</h2>
+          <p>Pilih satu cara untuk mulai. Semua data disimpan di komputer ini saja.</p>
+          <div class="empty-grid">
+            <button type="button" class="card" data-start="import">
+              <b>Impor file</b><span>Ambil dari Excel (.xlsx) atau CSV yang sudah ada.</span>
+            </button>
+            <button type="button" class="card" data-start="paste">
+              <b>Tempel dari Excel</b><span>Salin beberapa baris di Excel, lalu tempel di sini.</span>
+            </button>
+            <button type="button" class="card" data-start="manual">
+              <b>Isi manual</b><span>Buat satu baris kosong dan ketik sendiri.</span>
+            </button>
+            <button type="button" class="card" data-start="sample">
+              <b>Pakai data contoh</b><span>Isi 12 baris contoh untuk mencoba cetak.</span>
+            </button>
+          </div>
+          <p class="empty-hint">Bisa juga seret file Excel atau CSV ke jendela ini.</p>
+        </div>
+      </div>
+
+      <footer class="statusbar">
+        <span id="statLeft">—</span>
+        <span class="grow"></span>
+        <span id="statRight"></span>
+      </footer>
+    </section>
+
+    <!-- ======================= TAB 2 : TEMPLATE & CETAK ======================= -->
+    <section class="view" id="viewPrint" role="tabpanel" aria-labelledby="tabPrint" hidden>
+      <div class="split">
+
+        <aside class="panel" id="panel">
+          <div class="panel-scroll">
+
+            <section class="grp">
+              <h3>Template label</h3>
+              <div class="tpl-picker" id="tplPicker" role="radiogroup" aria-label="Pilih template label"></div>
+              <p class="note" id="tplNote"></p>
+            </section>
+
+            <section class="grp">
+              <h3>Kertas</h3>
+              <div class="row">
+                <label class="fld grow2">
+                  <span>Ukuran kertas</span>
+                  <select id="selPaper" class="sel"></select>
+                </label>
+                <label class="fld">
+                  <span>Arah</span>
+                  <select id="selOrient" class="sel">
+                    <option value="portrait">Tegak</option>
+                    <option value="landscape">Mendatar</option>
+                  </select>
+                </label>
+              </div>
+              <div class="row" id="rowCustomPaper" hidden>
+                <label class="fld"><span>Lebar kertas (mm)</span><input type="number" id="inPaperW" min="20" max="2000" step="1"></label>
+                <label class="fld"><span>Tinggi kertas (mm)</span><input type="number" id="inPaperH" min="20" max="2000" step="1"></label>
+              </div>
+            </section>
+
+            <section class="grp">
+              <h3>Tata letak</h3>
+              <label class="chk chk-block">
+                <input type="checkbox" id="chkLock">
+                <span><b>Kunci ukuran label dalam mm</b><small>Ukuran label tidak ikut berubah saat kertas diganti.</small></span>
+              </label>
+              <div class="row">
+                <label class="fld"><span>Lebar label (mm)</span><input type="number" id="inCellW" min="10" max="1000" step="0.5"></label>
+                <label class="fld"><span>Tinggi label (mm)</span><input type="number" id="inCellH" min="5" max="1000" step="0.5"></label>
+              </div>
+              <div class="row">
+                <label class="fld"><span>Kolom</span><input type="number" id="inCols" min="1" max="20" step="1"></label>
+                <label class="fld"><span>Baris</span><input type="number" id="inRows" min="1" max="40" step="1"></label>
+                <button type="button" class="btn btn-sm" id="btnAutoFit" title="Hitung kolom dan baris terbanyak yang muat">Muat maksimal</button>
+              </div>
+              <div class="row">
+                <label class="fld"><span>Margin (mm)</span><input type="number" id="inMargin" min="0" max="40" step="0.5"></label>
+                <label class="fld"><span>Jarak antar label (mm)</span><input type="number" id="inGap" min="0" max="30" step="0.5"></label>
+              </div>
+              <div class="row">
+                <label class="fld"><span>Skala huruf</span>
+                  <input type="range" id="inScale" min="70" max="140" step="1">
+                  <output id="outScale">100%</output>
+                </label>
+                <label class="fld"><span>Salinan per label</span><input type="number" id="inCopies" min="1" max="50" step="1"></label>
+              </div>
+              <p class="warn" id="fitWarn" hidden></p>
+            </section>
+
+            <section class="grp">
+              <h3>Isi label</h3>
+              <label class="chk chk-block"><input type="checkbox" id="chkQR"><span>Tampilkan QR code</span></label>
+              <label class="fld" id="fldQR">
+                <span>Isi QR</span>
+                <input type="text" id="inQRPattern" spellcheck="false">
+                <small class="hint">Pakai <code>{sku}</code> <code>{kode}</code> <code>{kodeDus}</code> <code>{qty}</code> <code>{lokasi}</code> <code>{labelId}</code> <code>{grn}</code> <code>{tanggal}</code></small>
+              </label>
+              <label class="chk chk-block"><input type="checkbox" id="chkBarcode"><span>Tampilkan barcode CODE128</span></label>
+              <label class="chk chk-block"><input type="checkbox" id="chkBlankLokasi"><span>Kosongkan kolom lokasi untuk ditulis tangan</span></label>
+              <label class="chk chk-block"><input type="checkbox" id="chkMeta"><span>Tampilkan tanggal &amp; supplier</span></label>
+              <label class="chk chk-block"><input type="checkbox" id="chkCut"><span>Tampilkan garis bantu potong</span></label>
+              <label class="chk chk-block"><input type="checkbox" id="chkSaveInk"><span><b>Mode hemat tinta</b><small>Blok warna diganti garis tepi dan arsir.</small></span></label>
+            </section>
+
+            <section class="grp">
+              <h3>Sebelum mencetak</h3>
+              <ul class="checklist">
+                <li>Di dialog printer, pilih margin <b>None</b> / <b>Tidak ada</b>.</li>
+                <li>Skala harus <b>100%</b> — jangan "Fit to page".</li>
+                <li>Centang <b>Background graphics</b> / <b>Grafik latar</b>.</li>
+                <li>Ukuran kertas di printer harus sama dengan pilihan di atas.</li>
+              </ul>
+              <button type="button" class="btn btn-block" id="btnCalib">Cetak halaman kalibrasi printer</button>
+            </section>
+
+          </div>
+
+          <div class="panel-foot">
+            <button type="button" class="btn btn-primary btn-block" id="btnPrint">Cetak sekarang</button>
+          </div>
+        </aside>
+
+        <div class="canvas" id="canvas">
+          <div class="canvas-bar">
+            <div class="counters">
+              <span class="cnt"><b id="cntLabel">0</b> label</span>
+              <span class="cnt"><b id="cntPage">0</b> lembar</span>
+              <span class="cnt"><b id="cntPer">0</b> per lembar</span>
+              <span class="cnt cnt-dim" id="cntSize">—</span>
+            </div>
+            <span class="grow"></span>
+            <div class="zoom">
+              <button type="button" class="iconbtn" id="btnZoomOut" aria-label="Perkecil">−</button>
+              <span id="lblZoom">100%</span>
+              <button type="button" class="iconbtn" id="btnZoomIn" aria-label="Perbesar">+</button>
+              <button type="button" class="btn btn-sm" id="btnZoomFit">Sesuaikan</button>
+            </div>
+          </div>
+          <div class="canvas-scroll" id="canvasScroll">
+            <div class="stage-box" id="stageBox"><div class="stage" id="stage"></div></div>
+            <p class="canvas-empty" id="canvasEmpty" hidden>Belum ada baris yang dicentang untuk dicetak.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Tempat kertas saat mencetak. Berada langsung di bawah body supaya
+     tidak ada satu pun pembungkus aplikasi yang ikut tercetak. -->
+<div id="paper"></div>
+
+<!-- ============================== MODAL ============================== -->
+<div class="backdrop" id="backdrop" hidden></div>
+
+<div class="modal modal-wide" id="mMap" hidden role="dialog" aria-modal="true" aria-labelledby="mMapTitle">
+  <div class="modal-head">
+    <h2 id="mMapTitle">Cocokkan kolom</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">✕</button>
+  </div>
+  <div class="modal-body">
+    <p class="note" id="mapSummary"></p>
+    <div class="maptable-wrap">
+      <table class="maptable">
+        <thead><tr><th>Kolom di file</th><th>Masuk ke kolom</th><th>Contoh isi</th></tr></thead>
+        <tbody id="mapBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <label class="chk"><input type="checkbox" id="mapReplace"> <span>Ganti data yang ada</span></label>
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close>Batal</button>
+    <button type="button" class="btn btn-primary" id="mapOk">Masukkan data</button>
+  </div>
+</div>
+
+<div class="modal" id="mPaste" hidden role="dialog" aria-modal="true" aria-labelledby="mPasteTitle">
+  <div class="modal-head">
+    <h2 id="mPasteTitle">Tempel dari Excel</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">✕</button>
+  </div>
+  <div class="modal-body">
+    <p class="note">Blok beberapa baris di Excel, tekan Ctrl+C, lalu klik kotak di bawah dan tekan Ctrl+V. Sertakan baris judul kolom kalau ada.</p>
+    <textarea id="pasteBox" rows="10" spellcheck="false" placeholder="Tempel di sini…"></textarea>
+  </div>
+  <div class="modal-foot">
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close>Batal</button>
+    <button type="button" class="btn btn-primary" id="pasteOk">Lanjut</button>
+  </div>
+</div>
+
+<div class="modal" id="mSum" hidden role="dialog" aria-modal="true" aria-labelledby="mSumTitle">
+  <div class="modal-head">
+    <h2 id="mSumTitle">Siap dicetak</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">✕</button>
+  </div>
+  <div class="modal-body" id="sumBody"></div>
+  <div class="modal-foot">
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close>Batal</button>
+    <button type="button" class="btn btn-primary" id="sumOk">Buka dialog cetak</button>
+  </div>
+</div>
+
+<div class="modal" id="mHelp" hidden role="dialog" aria-modal="true" aria-labelledby="mHelpTitle">
+  <div class="modal-head">
+    <h2 id="mHelpTitle">Bantuan singkat</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">✕</button>
+  </div>
+  <div class="modal-body" id="helpBody"></div>
+  <div class="modal-foot"><span class="grow"></span><button type="button" class="btn btn-primary" data-close>Tutup</button></div>
+</div>
+
+<div class="drop" id="dropHint" hidden><div>Lepas file di sini</div></div>
+<div class="toast" id="toast" hidden></div>
+
+<input type="file" id="fileIn" accept=".xlsx,.xlsm,.csv,.txt" hidden>
+<input type="file" id="fileJson" accept=".json" hidden>
+
+<datalist id="dlZona">
+  <option value="HIJAU"></option><option value="MERAH"></option><option value="KUNING"></option>
+  <option value="NEW"></option><option value="HOLD"></option>
+</datalist>
+<datalist id="dlStatus">
+  <option value="READY"></option><option value="PENDING"></option><option value="NEW"></option>
+  <option value="HOLD"></option><option value="RUSAK"></option>
+</datalist>
+
+<script src="vendor/xlsx.mini.min.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="vendor/JsBarcode.code128.min.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/templates.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

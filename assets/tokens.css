@@ -1,0 +1,136 @@
+/* =====================================================================
+   tokens.css — warna, huruf, jarak.
+   Bahasa visual: gudang & dermaga bongkar muat. Biru-abu baja untuk
+   kerangka, kuning pengaman untuk aksi utama, kertas selalu putih.
+   ===================================================================== */
+
+:root{
+  /* ---- kerangka aplikasi: tema terang ---- */
+  --dock:      #EDF0F4;   /* latar panel */
+  --dock-2:    #FFFFFF;   /* kartu / bidang isian */
+  --dock-3:    #E2E7EE;   /* bidang tertekan */
+  --canvas:    #CED6E0;   /* meja kerja di belakang kertas */
+  --line:      #C1CAD6;
+  --line-soft: #DDE3EB;
+  --ink:       #14202C;
+  --ink-2:     #4B5A6B;
+  --ink-3:     #7B8A9B;
+
+  --steel:     #2B3D51;   /* pita judul, baris gelap */
+  --steel-ink: #F2F6FA;
+
+  /* satu-satunya warna aksen: kuning pengaman */
+  --hi:        #E8A00C;
+  --hi-ink:    #241900;
+  --hi-soft:   #FBEBC6;
+
+  --ok:        #1C7A4B;
+  --danger:    #B3261E;
+  --danger-soft:#FBE7E5;
+
+  /* ---- kertas: sama di kedua tema, selalu putih ---- */
+  --paper:     #FFFFFF;
+  --paper-ink: #0E1620;
+  --paper-line:#0E1620;
+
+  --shadow-1: 0 1px 2px rgba(20,32,44,.10);
+  --shadow-2: 0 1px 2px rgba(20,32,44,.10), 0 10px 26px rgba(20,32,44,.12);
+  --shadow-paper: 0 2px 4px rgba(0,0,0,.28), 0 18px 40px rgba(0,0,0,.30);
+
+  --r:   10px;
+  --r-s: 7px;
+  --r-xs:4px;
+
+  /* jarak — kelipatan 4 */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+
+  /* ---- huruf ----
+     Semua keluarga punya cadangan lokal: gudang sering tanpa internet,
+     jadi tidak ada satu pun font yang diunduh. */
+  --sans: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,
+          "Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  --mono: ui-monospace,"Cascadia Mono","Segoe UI Mono","Roboto Mono",
+          Menlo,Consolas,"Liberation Mono",monospace;
+  /* huruf condensed untuk kode dan angka besar di label */
+  --disp: "Oswald","Archivo Narrow","Liberation Sans Narrow","Arial Narrow",
+          "Haettenschweiler","Franklin Gothic Medium",Impact,var(--sans);
+
+  --fs-xs: 11px; --fs-sm: 12px; --fs: 13px; --fs-md: 14px; --fs-lg: 16px;
+
+  --tab-h: 52px;
+}
+
+/* ---- tema gelap: ikut sistem, kecuali dipaksa terang ---- */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --dock:      #18212C;
+    --dock-2:    #202C3A;
+    --dock-3:    #28374A;
+    --canvas:    #0E151D;
+    --line:      #35475C;
+    --line-soft: #2A3949;
+    --ink:       #E6EDF5;
+    --ink-2:     #A8B7C8;
+    --ink-3:     #78899B;
+
+    --steel:     #0B1219;
+    --steel-ink: #EAF1F8;
+
+    --hi:        #F5B301;
+    --hi-ink:    #1E1600;
+    --hi-soft:   #3A2E06;
+
+    --ok:        #3CBE7E;
+    --danger:    #FF7E71;
+    --danger-soft:#3A1714;
+
+    --shadow-1: 0 1px 2px rgba(0,0,0,.45);
+    --shadow-2: 0 1px 2px rgba(0,0,0,.45), 0 14px 34px rgba(0,0,0,.50);
+    --shadow-paper: 0 2px 6px rgba(0,0,0,.55), 0 22px 50px rgba(0,0,0,.55);
+  }
+}
+
+/* ---- tema gelap dipaksa lewat tombol ---- */
+:root[data-theme="dark"]{
+  --dock:      #18212C;
+  --dock-2:    #202C3A;
+  --dock-3:    #28374A;
+  --canvas:    #0E151D;
+  --line:      #35475C;
+  --line-soft: #2A3949;
+  --ink:       #E6EDF5;
+  --ink-2:     #A8B7C8;
+  --ink-3:     #78899B;
+
+  --steel:     #0B1219;
+  --steel-ink: #EAF1F8;
+
+  --hi:        #F5B301;
+  --hi-ink:    #1E1600;
+  --hi-soft:   #3A2E06;
+
+  --ok:        #3CBE7E;
+  --danger:    #FF7E71;
+  --danger-soft:#3A1714;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,.45);
+  --shadow-2: 0 1px 2px rgba(0,0,0,.45), 0 14px 34px rgba(0,0,0,.50);
+  --shadow-paper: 0 2px 6px rgba(0,0,0,.55), 0 22px 50px rgba(0,0,0,.55);
+}
+
+/* ---- warna zona dan status: HANYA dipakai di dalam label ---- */
+:root{
+  --z-hijau:  #1B8A4B;
+  --z-merah:  #C22B22;
+  --z-kuning: #D8940A;
+  --z-new:    #1D4ED8;
+  --z-hold:   #6B21A8;
+  --z-lain:   #4A5867;
+
+  --st-ready:   #1B8A4B;
+  --st-pending: #D8940A;
+  --st-new:     #1D4ED8;
+  --st-hold:    #6B21A8;
+  --st-rusak:   #C22B22;
+  --st-lain:    #4A5867;
+}
