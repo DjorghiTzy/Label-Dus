@@ -24,6 +24,7 @@
    - layar selebar 390 px: semua tombol terjangkau
    ===================================================================== */
 'use strict';
+var urutLokasi = '';
 var path = require('path');
 var ROOT = path.join(__dirname, '..');
 var BASIS = process.env.BASIS || ('file://' + ROOT);
@@ -639,6 +640,110 @@ function cek(nama, syarat, tambahan) {
       cek('semua tombol terjangkau', r.buruk.length === 0, r.buruk.join(', '));
       cek('halaman tidak menggulir ke samping', r.gulir <= 0, r.gulir + 'px');
     })
+
+    /* ---- alur: data mentah -> generate lokasi -> cetak ---- */
+    .then(function () {
+      console.log('\n== Alur generate lokasi lalu cetak ==');
+      /* bagian sebelumnya mengecilkan jendela ke 390 px; pratinjau
+         diperkecil transform CSS supaya muat, jadi jendelanya
+         dikembalikan dulu sebelum label diukur */
+      return page.setViewportSize({ width: 1440, height: 950 })
+        .then(function () { return page.evaluate(function () {
+        var D = window.LG.data, baris = [], pre = ['A-CHR', 'B-CCH', 'C-CBL', 'D-PWB'], i, r;
+        for (i = 0; i < 50; i++) {
+          r = D.blank();
+          r.labelId = 'LBL-' + (i + 1); r._on = true;
+          r.barcode = '1946441678' + (10 + i);
+          r.sku = 'Anker Adp Fc 20W 2Port Usb/C A' + (2300 + i) + ' White';
+          r.brand = 'Anker'; r.tipe = 'A' + (2300 + Math.floor(i / 4));
+          r.prefix = pre[i % 4]; r.golongan = 'Charger';
+          baris.push(r);
+        }
+        D.save({ rows: baris, opts: {} }, 'cv');
+      }); })
+        .then(function () { return page.reload(); })
+        .then(function () { return page.waitForTimeout(800); })
+        .then(function () { return page.click('#btnGenLok'); })
+        .then(function () { return page.waitForTimeout(700); })
+        .then(function () {
+          return page.evaluate(function () {
+            var D = window.LG.data, R = D.load('cv').rows;
+            var aCHR = R.filter(function (r) { return r.prefix === 'A-CHR'; })
+                        .map(function (r) { return r.lokasi; }).sort();
+            return {
+              semuaPunyaLokasi: R.every(function (r) { return D.isLokasiFinal(r.lokasi); }),
+              awal: aCHR[0], keSebelas: aCHR[10],
+              bPrefix: R.filter(function (r) { return r.prefix === 'B-CCH'; })
+                        .map(function (r) { return r.lokasi; }).sort()[0],
+              bagian: [R[0].rak, R[0].baris, R[0].posisi].join(' '),
+              kembar: D.lokasiKembar(R).length,
+              qr: D.qrPayload(R[0]),
+              urut: R.map(function (r) { return r.lokasi; }).join(',')
+            };
+          });
+        })
+        .then(function (r) {
+          cek('semua baris dapat Lokasi final', r.semuaPunyaLokasi === true);
+          cek('mulai dari R01-B01-P01', r.awal === 'A-CHR-R01-B01-P01', r.awal);
+          cek('yang ke-11 lanjut ke B02-P01', r.keSebelas === 'A-CHR-R01-B02-P01', r.keSebelas);
+          cek('prefix lain mulai dari nol lagi', r.bPrefix === 'B-CCH-R01-B01-P01', r.bPrefix);
+          cek('Rak/Baris/Posisi ikut terisi di tabel', r.bagian === 'R01 B01 P01', r.bagian);
+          cek('tidak ada lokasi kembar', r.kembar === 0, r.kembar + ' kembar');
+          cek('QR jadi barcode|lokasi final',
+              r.qr === '194644167810|A-CHR-R01-B01-P01', r.qr);
+          urutLokasi = r.urut;
+        })
+        /* generate kedua kali: tidak ada yang bergeser */
+        .then(function () { return page.click('#btnGenLok'); })
+        .then(function () { return page.waitForTimeout(600); })
+        .then(function () {
+          return page.evaluate(function () {
+            return window.LG.data.load('cv').rows.map(function (r) { return r.lokasi; }).join(',');
+          });
+        })
+        .then(function (v) { cek('generate ulang tidak menggeser lokasi', v === urutLokasi); })
+        /* lokasi bertahan setelah halaman dimuat ulang */
+        .then(function () { return page.reload(); })
+        .then(function () { return page.waitForTimeout(800); })
+        .then(function () {
+          return page.evaluate(function () {
+            return window.LG.data.load('cv').rows.map(function (r) { return r.lokasi; }).join(',');
+          });
+        })
+        .then(function (v) { cek('lokasi bertahan setelah dimuat ulang', v === urutLokasi); })
+        /* cetak langsung dari Data label */
+        .then(function () { return page.click('#btnPrintRak'); })
+        .then(function () { return page.waitForTimeout(1300); })
+        .then(function () {
+          return page.evaluate(function () {
+            var MM = 96 / 25.4, l = document.querySelector('#stage .lbl');
+            var g = l ? l.getBoundingClientRect() : null;
+            return {
+              w: g ? Math.round(g.width / MM * 100) / 100 : 0,
+              h: g ? Math.round(g.height / MM * 100) / 100 : 0,
+              per: +document.getElementById('cntPer').textContent,
+              pola: document.getElementById('inQRPattern').value,
+              ringkasan: !document.getElementById('mSum').hidden,
+              teks: l ? l.textContent : ''
+            };
+          });
+        })
+        .then(function (r) {
+          cek('cetak dari Data label memakai template rak 100 x 25 mm',
+              r.w === 100 && r.h === 25, r.w + ' x ' + r.h + ' mm');
+          cek('tetap 20 label per lembar A4', r.per === 20, r.per + '/lembar');
+          cek('QR label memakai QR Payload', r.pola === '{qrPayload}', r.pola);
+          cek('ringkasan sebelum cetak terbuka', r.ringkasan === true);
+          cek('label memakai lokasi tersimpan, bukan prefix',
+              /A-CHR-R01-B01-P01/.test(r.teks) && !/^A-CHR$/.test(r.teks.trim()), r.teks.slice(0, 40));
+        })
+        .then(function () {
+          return page.evaluate(function () { document.body.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+        })
+        .then(function () { return page.waitForTimeout(300); });
+    })
+
 
     /* ---- jaringan & error ---- */
     .then(function () {

@@ -32,6 +32,11 @@
        lokasi final dan tidak pernah disalin ke kolom Lokasi final —
        R/B/P tidak boleh ditebak aplikasi. */
     { k: 'prefix',   t: 'Prefix lokasi', w: 106, cls: 'code' },
+    /* Rak / Baris / Posisi adalah pecahan dari Lokasi final. Diisi
+       generator, dan ikut disegarkan kalau lokasinya diedit tangan. */
+    { k: 'rak',      t: 'Rak',         w: 68,  cls: 'code' },
+    { k: 'baris',    t: 'Baris',       w: 68,  cls: 'code' },
+    { k: 'posisi',   t: 'Posisi',      w: 68,  cls: 'code' },
     { k: 'area',     t: 'Area',        w: 72 },
     { k: 'kodeGol',  t: 'Kode golongan', w: 100, cls: 'code' },
     { k: 'golongan', t: 'Golongan',    w: 110 },
@@ -113,7 +118,7 @@
 
     /* LOKASI FINAL. Nama header yang dipakai gudang ACC ikut didaftarkan
        supaya tidak tertukar dengan prefix. */
-    lokasi: 'lokasi', lokasirak: 'lokasi', rak: 'lokasi', bin: 'lokasi',
+    lokasi: 'lokasi', lokasirak: 'lokasi', bin: 'lokasi',
     binlocation: 'lokasi', location: 'lokasi', letak: 'lokasi', posisi: 'lokasi',
     lokasifinal: 'lokasi', lokasirakfinal: 'lokasi', lokasiakhir: 'lokasi',
     locationcode: 'lokasi', kodelokasi: 'lokasi', finallocation: 'lokasi',
@@ -124,6 +129,11 @@
        menariknya ke 'lokasi' karena mengandung kata "lokasi". */
     prefix: 'prefix', prefixlokasi: 'prefix', lokasiprefix: 'prefix',
     prefixrak: 'prefix', awalanlokasi: 'prefix', prefixlocation: 'prefix',
+    areaprefix: 'prefix', prefixarea: 'prefix', kodeprefix: 'prefix',
+
+    rak: 'rak', norak: 'rak', rack: 'rak',
+    baris: 'baris', shelf: 'baris', nobaris: 'baris', barisrak: 'baris', row: 'baris',
+    posisi: 'posisi', noposisi: 'posisi', slot: 'posisi', position: 'posisi',
 
     /* Area (A, B, C) dan golongan (CHR / Charger) berdiri sendiri.
        Dulu "Area" jatuh ke Zona; sekarang Zona hanya dari kata zona. */
@@ -196,6 +206,177 @@
     var lok = lokasiFinal(row);
     if (bc && lok) return bc + '|' + lok;
     return bc || lok;
+  }
+
+  /* ------------------------------------------------------------------
+     GENERATOR LOKASI RAK
+
+     Bentuk lokasi final: {PREFIX}-Rxx-Bxx-Pxx, misalnya A-CHR-R01-B01-P01.
+     Kapasitas bawaan satu rak: 4 baris x 10 posisi = 40 slot.
+
+     Urutannya P01..P10, lalu B01..B04, lalu R01, R02, dan seterusnya —
+     jadi satu slot bisa dinyatakan sebagai satu angka urut, dan seluruh
+     perhitungannya jadi sekadar bagi-sisa. Deterministic: masukan yang
+     sama selalu menghasilkan lokasi yang sama.
+     ------------------------------------------------------------------ */
+  var KAPASITAS = { baris: 4, posisi: 10 };
+
+  function pad2n(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
+
+  /* Prefix: dua ruas, "A-CHR" atau "B-CCH". Sengaja tidak mengandung
+     ruas R/B/P — kalau ada, itu lokasi final, bukan prefix. */
+  var RE_PREFIX = /^[A-Z0-9]{1,4}(-[A-Z0-9]{2,8})+$/i;
+  var RE_LOKASI = /^(.+?)-R(\d{1,3})-B(\d{1,3})-P(\d{1,3})$/i;
+
+  function isPrefix(v) {
+    v = String(v == null ? '' : v).trim();
+    if (!v || RE_LOKASI.test(v)) return false;
+    return RE_PREFIX.test(v);
+  }
+
+  /* Lokasi final dipecah jadi bagian-bagiannya. Dicek terhadap pola,
+     bukan terhadap panjang string. */
+  function parseLokasi(v) {
+    var m = RE_LOKASI.exec(String(v == null ? '' : v).trim());
+    if (!m) return null;
+    var r = parseInt(m[2], 10), b = parseInt(m[3], 10), p = parseInt(m[4], 10);
+    if (!(r >= 1) || !(b >= 1) || !(p >= 1)) return null;
+    return {
+      prefix: m[1].toUpperCase(),
+      rak: r, baris: b, posisi: p,
+      rakTxt: 'R' + pad2n(r), barisTxt: 'B' + pad2n(b), posisiTxt: 'P' + pad2n(p)
+    };
+  }
+
+  function isLokasiFinal(v) { return !!parseLokasi(v); }
+
+  /* Nomor slot <-> lokasi. Slot 0 = R01-B01-P01. */
+  function slotKeLokasi(prefix, slot) {
+    var perBaris = KAPASITAS.posisi, perRak = KAPASITAS.baris * KAPASITAS.posisi;
+    var r = Math.floor(slot / perRak) + 1;
+    var b = Math.floor((slot % perRak) / perBaris) + 1;
+    var p = (slot % perBaris) + 1;
+    return String(prefix).toUpperCase() + '-R' + pad2n(r) + '-B' + pad2n(b) + '-P' + pad2n(p);
+  }
+
+  function lokasiKeSlot(v) {
+    var d = parseLokasi(v);
+    if (!d) return -1;
+    if (d.baris > KAPASITAS.baris || d.posisi > KAPASITAS.posisi) return -1;
+    return (d.rak - 1) * KAPASITAS.baris * KAPASITAS.posisi +
+           (d.baris - 1) * KAPASITAS.posisi + (d.posisi - 1);
+  }
+
+  /* Rak/Baris/Posisi selalu turunan dari Lokasi final, tidak pernah
+     sebaliknya — jadi keduanya tidak bisa berbeda isi. */
+  function isiBagianLokasi(row) {
+    var d = parseLokasi(row.lokasi);
+    if (d) {
+      row.rak = d.rakTxt; row.baris = d.barisTxt; row.posisi = d.posisiTxt;
+      if (!String(row.prefix || '').trim()) row.prefix = d.prefix;
+    } else {
+      row.rak = ''; row.baris = ''; row.posisi = '';
+    }
+    return row;
+  }
+
+  /* Urutan pemberian slot: prefix -> brand -> tipe -> nama. Varian satu
+     tipe jadi bersebelahan di rak. Urutan barisnya di tabel tidak ikut
+     diubah — yang diurutkan cuma giliran mengambil slot. */
+  function urutTempat(a, b) {
+    var ka = [a.row.brand || '', a.row.tipe || '', a.row.sku || '', a.row.barcode || ''];
+    var kb = [b.row.brand || '', b.row.tipe || '', b.row.sku || '', b.row.barcode || ''];
+    for (var i = 0; i < ka.length; i++) {
+      var x = String(ka[i]).toUpperCase(), y = String(kb[i]).toUpperCase();
+      if (x !== y) return x < y ? -1 : 1;
+    }
+    return a.i - b.i;                 /* pengunci: urutan baris asli */
+  }
+
+  /* Membuat lokasi final untuk baris yang belum punya.
+
+     Yang sudah punya lokasi tidak pernah disentuh — tidak ditimpa, tidak
+     dipindah. SKU yang barcodenya sudah pernah dapat lokasi memakai
+     lokasi yang sama, jadi mengimpor file yang sama dua kali tidak
+     menggeser apa pun. */
+  function generateLokasi(list) {
+    var i, r, lok, pre, slot;
+    var dipakai = {}, byBarcode = {};
+    var hasil = { dibuat: 0, sudahAda: 0, tanpaPrefix: 0, lokasiSalah: 0, ikutBarcode: 0 };
+
+    /* 1. baca semua lokasi yang sudah ada */
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      lok = String(r.lokasi || '').trim();
+      if (!lok) continue;
+      if (!isLokasiFinal(lok)) { hasil.lokasiSalah++; continue; }
+      isiBagianLokasi(r);
+      pre = parseLokasi(lok).prefix;
+      slot = lokasiKeSlot(lok);
+      if (!dipakai[pre]) dipakai[pre] = {};
+      if (slot >= 0) dipakai[pre][slot] = 1;
+      var bc = String(r.barcode || '').trim();
+      if (bc && !byBarcode[bc]) byBarcode[bc] = lok;
+      hasil.sudahAda++;
+    }
+
+    /* 2. kumpulkan yang belum punya, kelompokkan per prefix */
+    var grup = {}, urutan = [];
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      if (String(r.lokasi || '').trim()) continue;
+
+      /* barcode yang sama sudah pernah dapat lokasi -> pakai yang itu */
+      var kode = String(r.barcode || '').trim();
+      if (kode && byBarcode[kode]) {
+        r.lokasi = byBarcode[kode];
+        isiBagianLokasi(r);
+        hasil.ikutBarcode++;
+        continue;
+      }
+
+      pre = String(r.prefix || '').trim().toUpperCase();
+      if (!pre) { hasil.tanpaPrefix++; continue; }
+      if (!isPrefix(pre)) { hasil.lokasiSalah++; continue; }
+      if (!grup[pre]) { grup[pre] = []; urutan.push(pre); }
+      grup[pre].push({ i: i, row: r });
+    }
+
+    /* 3. isi slot kosong berikutnya, satu antrean per prefix */
+    urutan.sort();
+    for (var g = 0; g < urutan.length; g++) {
+      pre = urutan[g];
+      var antre = grup[pre];
+      antre.sort(urutTempat);
+      if (!dipakai[pre]) dipakai[pre] = {};
+      var cari = 0;
+      for (i = 0; i < antre.length; i++) {
+        while (dipakai[pre][cari]) cari++;
+        lok = slotKeLokasi(pre, cari);
+        dipakai[pre][cari] = 1;
+        r = antre[i].row;
+        r.lokasi = lok;
+        isiBagianLokasi(r);
+        var bc2 = String(r.barcode || '').trim();
+        if (bc2 && !byBarcode[bc2]) byBarcode[bc2] = lok;
+        hasil.dibuat++;
+      }
+    }
+    return hasil;
+  }
+
+  /* Lokasi final yang dipakai lebih dari satu baris. Dipanggil setelah
+     generate dan setiap kali kolom lokasi diedit tangan. */
+  function lokasiKembar(list) {
+    var hit = {}, out = [], i, lok;
+    for (i = 0; i < list.length; i++) {
+      lok = String(list[i].lokasi || '').trim().toUpperCase();
+      if (!lok) continue;
+      hit[lok] = (hit[lok] || 0) + 1;
+    }
+    for (lok in hit) if (hit.hasOwnProperty(lok) && hit[lok] > 1) out.push(lok);
+    out.sort();
+    return out;
   }
 
   /* Status mapping dari file: DRAFT OK / REVIEW TIPE / REVIEW BARCODE.
@@ -893,6 +1074,15 @@
     belumLokasiFinal: belumLokasiFinal,
     qrPayload: qrPayload,
     statusMapping: statusMapping,
+    KAPASITAS: KAPASITAS,
+    isPrefix: isPrefix,
+    isLokasiFinal: isLokasiFinal,
+    parseLokasi: parseLokasi,
+    slotKeLokasi: slotKeLokasi,
+    lokasiKeSlot: lokasiKeSlot,
+    isiBagianLokasi: isiBagianLokasi,
+    generateLokasi: generateLokasi,
+    lokasiKembar: lokasiKembar,
     parseDelimited: parseDelimited,
     matrixToTable: matrixToTable,
     guessMapping: guessMapping,

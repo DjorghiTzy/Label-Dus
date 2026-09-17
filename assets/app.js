@@ -276,6 +276,8 @@
       if (!rows[i]) return;
       if (k === 'tanggal') return;                 /* diproses saat selesai mengetik */
       rows[i][k] = inp.value;
+      /* Rak/Baris/Posisi selalu ikut Lokasi final, tidak pernah lepas. */
+      if (k === 'lokasi') D.isiBagianLokasi(rows[i]);
       saveSoon(); schedulePreview();
 
       /* rekomendasi produk muncul sambil mengetik */
@@ -293,6 +295,30 @@
         updateAllCheck(); saveSoon(); schedulePreview();
         return;
       }
+      /* Lokasi final yang diketik sendiri diperiksa formatnya dan
+         kekembarannya — tapi tidak pernah dikembalikan ke hasil
+         generator. Yang diketik orang menang. */
+      if (t.getAttribute && t.getAttribute('data-k') === 'lokasi') {
+        tr = t.parentNode.parentNode; i = parseInt(tr.getAttribute('data-i'), 10);
+        if (rows[i]) {
+          var lok = String(rows[i].lokasi || '').trim();
+          D.isiBagianLokasi(rows[i]);
+          if (lok && !D.isLokasiFinal(lok)) {
+            toast(D.isPrefix(lok)
+              ? '"' + lok + '" itu prefix, bukan lokasi final. Bentuknya harus ' + lok + '-R01-B01-P01.'
+              : 'Format lokasi belum benar. Contoh yang benar: A-CHR-R01-B01-P01.');
+          } else if (lok) {
+            var sama = 0;
+            for (var z = 0; z < rows.length; z++) {
+              if (String(rows[z].lokasi || '').trim().toUpperCase() === lok.toUpperCase()) sama++;
+            }
+            if (sama > 1) toast('Lokasi ' + lok + ' dipakai ' + sama + ' baris.');
+          }
+          renderTable(); schedulePreview(); doSave();
+        }
+        return;
+      }
+
       /* Mengetik barcode yang ada di katalog akan mengisi nama produk dan
          stoknya — tapi hanya kalau kolomnya masih kosong, supaya tidak
          menimpa yang sudah diketik sendiri. */
@@ -1706,6 +1732,68 @@
       D.fillMissingIds(rows);
       renderTable(); schedulePreview(); doSave();
       toast('Selesai. Sekarang ada ' + rows.length + ' baris.');
+    });
+
+    /* ---- generate lokasi rak ----
+       Hanya mengisi baris yang Lokasi finalnya masih kosong. Yang sudah
+       punya lokasi tidak pernah dipindah — termasuk saat file yang sama
+       diimpor dua kali. */
+    on($('btnGenLok'), 'click', function () {
+      var target = anyChecked();
+      var pilih = [], i;
+      for (i = 0; i < rows.length; i++) if (!target || rows[i]._on) pilih.push(rows[i]);
+      if (!pilih.length) { toast('Tidak ada baris untuk diproses.'); return; }
+
+      var belum = 0;
+      for (i = 0; i < pilih.length; i++) if (!String(pilih[i].lokasi || '').trim()) belum++;
+      if (!belum) { toast('Semua baris sudah punya Lokasi final. Tidak ada yang diubah.'); return; }
+
+      markUndo('generate lokasi rak');
+      var h = D.generateLokasi(pilih);
+      var kembar = D.lokasiKembar(rows);
+
+      var pesan = [];
+      if (h.dibuat) pesan.push(h.dibuat + ' lokasi baru dibuat');
+      if (h.ikutBarcode) pesan.push(h.ikutBarcode + ' mengikuti lokasi barcode yang sama');
+      if (h.sudahAda) pesan.push(h.sudahAda + ' sudah punya lokasi, tidak diubah');
+      if (h.tanpaPrefix) pesan.push(h.tanpaPrefix + ' dilewati karena Prefix lokasi kosong');
+      if (h.lokasiSalah) pesan.push(h.lokasiSalah + ' dilewati karena formatnya tidak dikenali');
+      if (kembar.length) pesan.push('perhatian: ' + kembar.length + ' lokasi kembar (' +
+        kembar.slice(0, 3).join(', ') + (kembar.length > 3 ? ', …' : '') + ')');
+
+      renderTable(); schedulePreview(); doSave();
+      toast(pesan.join(' · '));
+    });
+
+    /* ---- cetak label rak langsung dari tabel ----
+       Lokasi yang sudah tersimpan dipakai apa adanya; tidak ada lokasi
+       yang dibuat di jalur cetak. */
+    on($('btnPrintRak'), 'click', function () {
+      var list = printableRows();
+      if (!list.length) { toast('Centang dulu baris yang mau dicetak.'); return; }
+      var belum = 0, i;
+      for (i = 0; i < list.length; i++) if (D.belumLokasiFinal(list[i])) belum++;
+
+      function lanjut() {
+        selectTemplate('rak100', true);
+        buildTplPicker(); syncControls();
+        showTab('print');
+        schedulePreview();
+        setTimeout(showSummary, 420);
+      }
+
+      if (belum) {
+        tanya({
+          judul: 'Ada baris tanpa Lokasi final',
+          pesan: belum + ' dari ' + list.length + ' baris belum punya Lokasi final. ' +
+                 'Labelnya tetap bisa dicetak, tapi bertanda "Lokasi belum diset" — ' +
+                 'bukan label final. Jalankan "Generate lokasi" dulu kalau mau lengkap.',
+          tombol: 'Cetak apa adanya', batal: 'Batal',
+          lanjut: lanjut
+        });
+        return;
+      }
+      lanjut();
     });
 
     on($('btnRenum'), 'click', function () {

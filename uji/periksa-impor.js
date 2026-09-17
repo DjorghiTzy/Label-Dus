@@ -268,5 +268,141 @@ cek('baris REVIEW BARCODE tidak dibuang dan lokasinya tetap utuh',
 cek('QR baris tanpa barcode jatuh ke lokasi final, bukan prefix',
     D.qrPayload(barisMap[2]) === 'A-CHR-R01-B03-P03', D.qrPayload(barisMap[2]));
 
+/* =====================================================================
+   GENERATOR LOKASI RAK
+
+   {PREFIX}-Rxx-Bxx-Pxx, 4 baris x 10 posisi per rak. Yang diperiksa:
+   urutannya benar, tiap prefix punya antrean sendiri, lokasi yang sudah
+   ada tidak pernah digeser, dan hasilnya sama kalau dijalankan lagi.
+   ===================================================================== */
+console.log('\nGenerator lokasi rak:');
+
+function skuBaru(pre, bc, brand, tipe, nama, lok) {
+  var r = D.blank();
+  r.prefix = pre; r.barcode = bc; r.brand = brand; r.tipe = tipe; r.sku = nama;
+  r.lokasi = lok || '';
+  return r;
+}
+
+cek('prefix dikenali, lokasi final ditolak sebagai prefix',
+    D.isPrefix('A-CHR') === true && D.isPrefix('A-CHR-R01-B01-P01') === false);
+cek('lokasi final dikenali, prefix ditolak',
+    D.isLokasiFinal('A-CHR-R01-B01-P01') === true && D.isLokasiFinal('A-CHR') === false);
+/* R1-B1-P1 masih diterima kalau diketik orang — data lama tidak dibuang.
+   Yang penting generatornya sendiri selalu menulis dua digit. */
+cek('R1-B1-P1 yang diketik tangan tetap terbaca', D.isLokasiFinal('A-CHR-R1-B1-P1') === true);
+cek('generator selalu menulis dua digit',
+    (function () {
+      var q, t;
+      for (q = 0; q < 200; q++) {
+        t = D.slotKeLokasi('A-CHR', q);
+        if (!/-R\d{2}-B\d{2}-P\d{2}$/.test(t)) return false;
+      }
+      return true;
+    })());
+cek('kapasitas bawaan 4 baris x 10 posisi',
+    D.KAPASITAS.baris === 4 && D.KAPASITAS.posisi === 10,
+    D.KAPASITAS.baris + ' x ' + D.KAPASITAS.posisi);
+
+cek('slot 0 jadi R01-B01-P01', D.slotKeLokasi('A-CHR', 0) === 'A-CHR-R01-B01-P01',
+    D.slotKeLokasi('A-CHR', 0));
+cek('slot 9 jadi R01-B01-P10', D.slotKeLokasi('A-CHR', 9) === 'A-CHR-R01-B01-P10',
+    D.slotKeLokasi('A-CHR', 9));
+cek('setelah P10 lanjut B02-P01', D.slotKeLokasi('A-CHR', 10) === 'A-CHR-R01-B02-P01',
+    D.slotKeLokasi('A-CHR', 10));
+cek('slot 39 jadi R01-B04-P10', D.slotKeLokasi('A-CHR', 39) === 'A-CHR-R01-B04-P10',
+    D.slotKeLokasi('A-CHR', 39));
+cek('setelah B04-P10 lanjut R02-B01-P01', D.slotKeLokasi('A-CHR', 40) === 'A-CHR-R02-B01-P01',
+    D.slotKeLokasi('A-CHR', 40));
+cek('tidak pernah muncul P11 atau B05',
+    !/P(1[1-9]|[2-9]\d)|B(0[5-9]|[1-9]\d)/.test(
+      (function () { var t = [], q; for (q = 0; q < 120; q++) t.push(D.slotKeLokasi('A-CHR', q)); return t.join(' '); })()));
+
+/* satu prefix, 45 SKU -> harus melewati batas rak dengan benar */
+var gen = [], gi;
+for (gi = 0; gi < 45; gi++) gen.push(skuBaru('A-CHR', 'BC' + gi, 'Anker', 'T' + gi, 'Item ' + gi));
+for (gi = 0; gi < 3; gi++) gen.push(skuBaru('B-CCH', 'CD' + gi, 'Baseus', 'U' + gi, 'Car ' + gi));
+var hg = D.generateLokasi(gen);
+cek('semua 48 baris dapat lokasi', hg.dibuat === 48, JSON.stringify(hg));
+
+var lokA = gen.filter(function (r) { return r.prefix === 'A-CHR'; })
+              .map(function (r) { return r.lokasi; }).sort();
+cek('A-CHR mulai dari R01-B01-P01', lokA[0] === 'A-CHR-R01-B01-P01', lokA[0]);
+cek('A-CHR yang ke-45 sampai R02-B01-P05', lokA[44] === 'A-CHR-R02-B01-P05', lokA[44]);
+cek('prefix lain punya antrean sendiri',
+    gen[45].lokasi === 'B-CCH-R01-B01-P01', gen[45].lokasi);
+cek('tidak ada lokasi kembar', D.lokasiKembar(gen).length === 0,
+    D.lokasiKembar(gen).join(', '));
+cek('Rak/Baris/Posisi ikut terisi',
+    gen[0].rak === 'R01' && gen[0].baris === 'B01' && gen[0].posisi === 'P01',
+    [gen[0].rak, gen[0].baris, gen[0].posisi].join(' '));
+
+/* jalankan lagi: tidak boleh ada yang bergeser */
+var sebelum = gen.map(function (r) { return r.lokasi; }).join(',');
+var hg2 = D.generateLokasi(gen);
+cek('menjalankan ulang tidak membuat lokasi baru', hg2.dibuat === 0, JSON.stringify(hg2));
+cek('lokasi yang sudah ada tidak bergeser',
+    gen.map(function (r) { return r.lokasi; }).join(',') === sebelum);
+
+/* lokasi existing dihormati, slot kosongnya diisi */
+var campur = [
+  skuBaru('A-CHR', 'X1', 'Anker', 'T1', 'Satu', 'A-CHR-R01-B01-P03'),
+  skuBaru('A-CHR', 'X2', 'Anker', 'T2', 'Dua'),
+  skuBaru('A-CHR', 'X3', 'Anker', 'T3', 'Tiga')
+];
+var hc = D.generateLokasi(campur);
+cek('lokasi existing tidak ditimpa', campur[0].lokasi === 'A-CHR-R01-B01-P03', campur[0].lokasi);
+cek('slot kosong diisi dari yang paling awal',
+    campur[1].lokasi === 'A-CHR-R01-B01-P01' && campur[2].lokasi === 'A-CHR-R01-B01-P02',
+    campur[1].lokasi + ' / ' + campur[2].lokasi);
+cek('slot yang sudah terpakai dilewati', hc.sudahAda === 1 && hc.dibuat === 2, JSON.stringify(hc));
+
+/* barcode jadi identitas: impor kedua kalinya tidak menggeser apa pun */
+var ulang = [
+  skuBaru('A-CHR', 'SAMA', 'Anker', 'T1', 'Satu', 'A-CHR-R01-B02-P07'),
+  skuBaru('A-CHR', 'SAMA', 'Anker', 'T1', 'Satu (impor ulang)')
+];
+D.generateLokasi(ulang);
+cek('barcode yang sama memakai lokasi yang sama',
+    ulang[1].lokasi === 'A-CHR-R01-B02-P07', ulang[1].lokasi);
+
+/* prefix kosong / tidak sah */
+var tanpa = [skuBaru('', 'Y1', '', '', 'Tanpa prefix'),
+             skuBaru('A-CHR-R01-B01-P01', 'Y2', '', '', 'Prefix keliru diisi lokasi')];
+var ht = D.generateLokasi(tanpa);
+cek('prefix kosong tidak digenerate', ht.tanpaPrefix === 1 && !tanpa[0].lokasi, JSON.stringify(ht));
+cek('prefix yang sebenarnya lokasi final ditolak', ht.lokasiSalah === 1 && !tanpa[1].lokasi);
+
+/* prefix tetap bukan lokasi final */
+var pre1 = D.blank(); pre1.prefix = 'A-CHR'; pre1.lokasi = 'A-CHR';
+cek('A-CHR di kolom lokasi tetap dianggap belum final',
+    D.belumLokasiFinal(pre1) === true && D.lokasiFinal(pre1) === '');
+
+/* QR ikut lokasi hasil generate */
+var qr1 = skuBaru('A-CHR', '194644167882', 'Anker', 'A2348', 'Anker Adp Fc 20W');
+D.generateLokasi([qr1]);
+cek('QR memakai barcode|lokasi final',
+    D.qrPayload(qr1) === '194644167882|A-CHR-R01-B01-P01', D.qrPayload(qr1));
+
+/* ekspor -> impor: lokasi kembali persis sama */
+var csvLok = D.COLUMNS.map(function (c) { return c.t; }).join(',') + '\r\n' +
+  gen.slice(0, 5).map(function (r) {
+    return D.COLUMNS.map(function (c) {
+      var v = String(r[c.k] == null ? '' : r[c.k]);
+      return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }).join(',');
+  }).join('\r\n');
+var tLok = D.matrixToTable(D.parseDelimited(csvLok));
+var barisLok = D.applyMapping(tLok, D.guessMapping(tLok.headers));
+cek('lokasi ikut dalam ekspor dan kembali utuh',
+    barisLok.map(function (r) { return r.lokasi; }).join(',') ===
+    gen.slice(0, 5).map(function (r) { return r.lokasi; }).join(','),
+    barisLok.map(function (r) { return r.lokasi; }).join(','));
+cek('Rak/Baris/Posisi ikut dalam ekspor',
+    barisLok[0].rak === gen[0].rak && barisLok[0].baris === gen[0].baris &&
+    barisLok[0].posisi === gen[0].posisi);
+var hRestore = D.generateLokasi(barisLok);
+cek('restore tidak membuat lokasi baru', hRestore.dibuat === 0, JSON.stringify(hRestore));
+
 console.log('\ngagal: ' + gagal);
 process.exit(gagal ? 1 : 0);
