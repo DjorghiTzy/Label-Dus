@@ -263,6 +263,21 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .checklist{ margin:0 0 var(--s3); padding-left:18px; color:var(--ink-2); font-size:var(--fs-sm); }
 .checklist li{ margin-bottom:4px; }
 
+/* ---- pemilih keluarga label ---- */
+.famtabs{
+  display:grid; grid-template-columns:1fr 1fr; gap:3px;
+  padding:3px; margin-bottom:var(--s2);
+  background:var(--dock-3); border-radius:var(--r-s);
+}
+.famtab{
+  border:0; background:transparent; color:var(--ink-2);
+  padding:7px 8px; border-radius:var(--r-xs); cursor:pointer;
+  font-weight:700; font-size:var(--fs-sm); white-space:nowrap;
+}
+.famtab:hover{ color:var(--ink); }
+.famtab.is-on{ background:var(--dock-2); color:var(--ink); box-shadow:var(--shadow-1); }
+.famnote{ margin:0 0 var(--s3); color:var(--ink-3); font-size:var(--fs-xs); line-height:1.5; }
+
 /* ---- pemilih template ---- */
 .tpl-picker{ display:grid; grid-template-columns:1fr 1fr; gap:var(--s2); }
 .tpl{

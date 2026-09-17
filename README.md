@@ -93,25 +93,60 @@ dengan penggaris sungguhan:
 
 ## Template label
 
-Dua template pertama **ukuran fisiknya pasti** dan tidak bisa diubah.
+Ada **dua keluarga**, dan tab di atas pemilih template memisahkan keduanya.
+Yang dipilih tersimpan, jadi besok aplikasi terbuka di keluarga yang sama.
 
-| Template | Ukuran | Per lembar A4 | Dipakai untuk |
+### Label rak — 14 template
+
+Ditempel di bibir rak, tiang, atau lorong. Isi utamanya **kode lokasi**,
+dibuat sebesar mungkin karena dibaca sambil berjalan.
+
+| Template | Ukuran | Per lembar | Dipakai untuk |
 |---|---|---|---|
-| **Rak 100 × 25** | 100 × 25 mm | 20 (2 × 10) | Bibir rak, dibaca sambil berjalan dari 2–3 meter |
-| **Dus 100 × 250** | 100 × 250 mm | 2 (2 × 1) | Sisi depan dus |
+| **Strip 100 × 25** | 100 × 25 mm | 20 | Strip rak baku. Terbaca dari 3 meter |
+| Strip 100 × 38 | 100 × 38 mm | 14 | Strip yang juga memuat SKU dan qty |
+| Kartu bin 100 × 50 | 100 × 50 mm | 10 | Rak picking yang sering di-scan |
+| Strip 75 × 25 | 75 × 25 mm | 20 | Rak sempit |
+| Bin mini 50 × 25 | 50 × 25 mm | 40 | Laci dan kotak kecil |
+| Strip lorong 150 × 30 | 150 × 30 mm | 9 | Balok rak, terbaca dari ujung gang |
+| Papan lorong | 1 per A4 mendatar | 1 | Papan gantung penanda lorong |
+| Label tiang | 25 × 100 mm tegak | 14 | Tiang rak, dibaca dari samping |
+| Rak FIFO | 100 × 38 mm | 14 | Tanggal masuk besar, stok lama diambil duluan |
+| Rak QR | 2 × 6 per A4 | 12 | Gudang yang serba scan |
+| Rak barcode | 2 × 8 per A4 | 16 | Pemindai laras |
+| Rak blok warna | 2 × 6 per A4 | 12 | Membagi gudang jadi area berwarna |
+| Papan bin | 1 × 4 per A4 | 4 | Papan selebar kertas untuk satu bin |
+| Rak proporsional | 2 × 6 per A4 | 12 | Kertas tidak baku — ukuran ikut kertas |
+
+### Label dus — 14 template
+
+Ditempel di sisi dus. Isi utamanya **kode barang**, ditambah qty, nomor
+dus, dan kolom lokasi untuk ditulis tangan.
+
+| Template | Ukuran | Per lembar | Dipakai untuk |
+|---|---|---|---|
+| **Banner 100 × 250** | 100 × 250 mm | 2 | Banner baku untuk sisi depan dus |
+| Banner 100 × 140 | 100 × 140 mm | 4 | Dus yang sisinya tidak setinggi 25 cm |
+| Dus A5 penuh | 1 per lembar A5 | 1 | Dus besar atau palet |
 | Dus standar | 2 × 4 per A4 | 8 | Pengganti sheet `PRINT_LABEL_8UP` |
 | Dus ringkas | 3 × 4 per A4 | 12 | Dus bertumpuk |
 | Dus besar | 2 × 2 per A4 | 4 | Label besar dengan barcode |
-| Rak / bin | 2 × 6 per A4 | 12 | Strip rak, ukurannya ikut kertas |
-| Mini | 4 × 6 per A4 | 24 | Stiker kecil |
-| Thermal | 100 × 50 mm | 1 | Printer thermal |
+| Dus mini | 4 × 6 per A4 | 24 | Barang satuan atau dus isi sedikit |
+| Thermal 100 × 50 | 100 × 50 mm | 1 | Printer thermal |
+| Thermal 100 × 100 | 100 × 100 mm | 1 | Thermal persegi, muat QR + barcode |
 | Kartu gantung | 2 × 2 per A4 | 4 | Kartu status berlubang |
+| Dus barang pecah | 2 × 2 per A4 | 4 | Tanda stensil: jangan dibanting, jauhkan dari air |
+| Dus FIFO | 2 × 3 per A4 | 6 | Stok yang keluar menurut urutan datang |
+| Dus periksa QC | 2 × 3 per A4 | 6 | Ada kotak centang, dicentang langsung di dus |
+| Dus rute simpan | 2 × 2 per A4 | 4 | Dari supplier menuju lokasi rak |
+
+Yang dicetak **tebal** adalah dua template dengan ukuran fisik pasti —
+ukurannya dikunci dan tidak bisa diubah. Template lain yang ukurannya
+disebut dalam mm juga terkunci; yang ditulis "n × n per A4" ikut kertas.
 
 Ukuran huruf di label mengikuti **jarak baca**, bukan selera: kode lokasi
 dan kode besar dibaca dari 3 meter, qty dan kode dus dari 1 meter,
 tanggal dan supplier dari dekat.
-
----
 
 ## Mengubah ukuran label
 
@@ -154,6 +189,54 @@ atas, bukan angka mati.** Kalau barisan label lebih lebar dari sisa
 kertas, margin mengecil sendiri supaya label tetap di tengah dan tidak
 terpotong. Contohnya template Dus: 2 × 100 mm + jarak 4 mm = 204 mm,
 sementara A4 hanya 210 mm — margin otomatis jadi 3 mm, bukan 4 mm.
+
+### Cara ketiga: membuat template baru
+
+Sebagian besar template bukan blok CSS sendiri-sendiri, melainkan
+**susunan bagian**. Satu template ditulis sebagai daftar:
+
+```js
+stack({
+  key: 'rakbaru', fam: 'rak', nama: 'Strip baru', ukuran: '100 × 30 mm',
+  fixed: true,
+  paper: 'a4', orient: 'portrait', cols: 2, rows: 9,
+  cellW: 100, cellH: 30, margin: 4, gap: 2,   // mm — untuk kertas
+  opts: { qr: true, barcode: false, meta: false },
+  mini: [2, 9], band: 'left', padU: 0.35, gapU: 0.25,
+  parts: [
+    { p: 'hero', h: 'fill', src: 'lokasi', size: 5.0, sub: false },
+    { p: 'meta', h: 1.2, list: ['skuvar', 'qty'], size: .95 }
+  ]
+})
+```
+
+Tambahkan hasilnya ke larik `RAK` atau `DUS` di `assets/templates.js`.
+Pemilih template, penyimpanan, dan mesin cetak mengikuti sendiri.
+
+**Satuan u.** Tinggi tiap bagian (`h`) dan ukuran huruf (`size`) memakai
+satuan `u`, bukan mm. Satu u = sepersepuluh tinggi label, jadi setiap
+label selalu setinggi **10u** berapa pun ukuran fisiknya. Aturannya:
+
+```
+jumlah(h) + 2 × padU + (jumlah bagian − 1) × gapU  ≤  10
+```
+
+Satu bagian boleh memakai `h: 'fill'` untuk mengambil sisa ruang.
+Perhatikan `padU`/`gapU` (satuan u, jarak **di dalam** label) berbeda dari
+`margin`/`gap` (mm, jarak **antar** label di kertas).
+
+Bagian yang tersedia: `title`, `hero`, `meta`, `rows`, `write`, `big2`,
+`route`, `codes`, `qrbig`, `bc`, `chips`, `boxes`, `marks`, `note`,
+`foot`, `rule`, `gap`.
+
+Dua pemeriksaan menjaga aturan ini — jalankan keduanya setelah mengubah
+template:
+
+- **Pemeriksa anggaran** menghitung apakah jumlah `h` masih ≤ 10u dan
+  apakah tiap ukuran huruf muat di kotaknya.
+- **Pemeriksa di browser** membuka setiap template dan memastikan tidak
+  ada isi yang terpotong, baik keluar dari label maupun di dalam
+  bagiannya sendiri.
 
 ### Menambah kolom data baru
 
@@ -236,6 +319,18 @@ dicatat di sini:
    ditulis tangan pakai spidol — bukan disembunyikan.
 8. **Versi lama satu-file dipindahkan ke `arsip/`**, tidak dihapus, supaya
    masih bisa dibuka kalau ada yang perlu dibandingkan.
+9. **Template ditulis sebagai daftar bagian, bukan CSS sendiri-sendiri.**
+   Dua puluh delapan template dengan CSS masing-masing akan jadi beban
+   pemeliharaan; dengan mesin bersama, satu perbaikan langsung berlaku
+   untuk semuanya.
+10. **Tinggi diukur dalam satuan u, bukan mm.** Percobaan pertama memakai
+   patokan yang bergantung lebar dan hasilnya tidak bisa diprediksi:
+   susunan yang sama muat di satu label tapi terpotong di label lain.
+   Dengan aturan "setiap label setinggi 10u", anggaran tiap bagian bisa
+   dihitung dan diperiksa otomatis.
+11. **Kolom "Diperiksa oleh" di label QC sengaja dikosongkan** walaupun
+   kolom PIC ada isinya — tanda tangan pemeriksaan harus dibubuhkan di
+   dus, bukan dicetak dari data.
 
 ---
 
@@ -245,11 +340,15 @@ dicatat di sini:
 |---|---|
 | Buka `index.html` tanpa internet, semua fitur jalan | lolos — 0 permintaan jaringan |
 | Impor `contoh/Format_Label_Dus.xlsx` | 60 baris; `46126` → `14-04-2026`; `SKU/Kode` → Kode; `Nama Barang` → SKU |
-| Cetak PDF template Rak | label terukur **100 × 25 mm**, 20 per lembar A4, 60 label = 3 lembar |
-| Cetak PDF template Dus | label terukur **100 × 250 mm**, 2 per lembar A4 |
+| Cetak PDF Strip rak 100 × 25 | label terukur **100 × 25 mm**, 20 per lembar A4, 60 label = 3 lembar |
+| Cetak PDF Banner dus 100 × 250 | label terukur **100 × 250 mm**, 2 per lembar A4, 60 label = 30 lembar |
 | Halaman kosong di akhir | tidak ada |
 | Halaman kalibrasi | kotak terukur 100 × 100 mm, penggaris 150 mm |
 | Data bertahan setelah browser ditutup | lolos |
 | Layar 390 px | semua tombol terjangkau, halaman tidak menggulir ke samping |
 | `console.error` sepanjang alur impor → edit → saring → cetak | tidak ada |
-| Sembilan template, isi tidak melebihi kotak label | lolos |
+| 28 template, isi tidak melebihi kotak label | lolos |
+| 28 template, tidak ada isi terpotong di dalam bagiannya | lolos |
+| Anggaran tinggi 10u untuk 19 template bermesin bersama | lolos |
+| Label tiang 25 × 100 mm (isi diputar 90°) | terukur 25 mm, jarak baris 27 mm |
+| Banner 100 × 140 mm | terukur 100 × 140 mm, 4 per A4, 60 label = 15 lembar |

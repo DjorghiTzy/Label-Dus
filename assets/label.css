@@ -456,6 +456,199 @@
 .lbl-tag .t-zone .chip{ height:100%; font-size:calc(5.5mm * var(--k)); border-radius:1mm; }
 
 /* =====================================================================
+   MESIN TATA LETAK BERSAMA (.lbl-gen)
+
+   Dipakai oleh sebagian besar template di kedua keluarga. Tinggi tiap
+   bagian dan ukuran huruf dihitung app.js dalam mm lalu ditulis sebaris,
+   jadi di sini hanya ada gaya yang tidak bergantung ukuran label.
+   ===================================================================== */
+.lbl-gen{ border:0.3mm solid #0E1620; position:relative; }
+.lbl-gen.flat{ border:0; }
+.lbl-gen.round{ border-radius:2mm; }
+
+.lbl-gen > .gw{
+  display:flex; width:100%; height:100%;
+  min-width:0; min-height:0;
+}
+.lbl-gen > .gw.b-top{ flex-direction:column; }
+.lbl-gen > .gw > .band{ flex:none; align-self:stretch; }
+
+.lbl-gen .gen{
+  flex:1 1 auto;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  min-width:0; min-height:0;
+}
+.lbl-gen .gen > *{ min-width:0; min-height:0; overflow:hidden; }
+
+/* label tiang: isinya strip mendatar biasa, lalu diputar 90°.
+   Garis tepi dipindah ke .gw — kalau tetap di .lbl, kotak yang diputar
+   jadi 0,6 mm lebih besar dari selnya dan tepinya terpotong. */
+.lbl-gen.lbl-rot{ border:0; overflow:hidden; }
+.lbl-rot > .gw{
+  position:absolute; top:0; left:0;
+  border:0.3mm solid #0E1620;
+  transform-origin:0 0;
+  transform:rotate(90deg) translate(0,-100%);
+}
+
+/* ---- bagian ---- */
+.g-gap{ }
+.g-rule{ background:#0E1620; align-self:stretch; }
+
+.g-title{ letter-spacing:.1em; font-weight:700; text-transform:uppercase; }
+.g-title .id{ font-family:var(--mono); letter-spacing:.02em; }
+
+.g-hero{
+  display:flex; flex-direction:column; justify-content:center;
+  min-width:0;
+}
+.g-hero.a-center{ align-items:center; text-align:center; }
+.g-hero .big{ width:100%; }
+.g-hero.a-center .big{ text-align:center; }
+.g-hero .g-sub{
+  font-family:var(--disp); font-weight:600; letter-spacing:.05em;
+  line-height:1.1; margin-top:.4em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.g-hero .g-sub em{ font-style:normal; color:#46545F; }
+
+.g-meta{
+  display:flex; align-items:baseline;
+  line-height:1; color:#46545F; min-width:0;
+}
+.g-meta span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.g-meta span:first-child{ font-weight:700; color:#0E1620; flex:0 1 auto; }
+.g-meta span + span{ flex:none; }
+
+.g-rows{ display:flex; flex-direction:column; justify-content:space-around; min-height:0; }
+.g-row{
+  display:flex; align-items:baseline; gap:.6em;
+  min-width:0; padding-bottom:.25em;
+  border-bottom:0.2mm dashed #8A97A3;
+}
+.g-row:last-child{ border-bottom:0; padding-bottom:0; }
+.g-row b{
+  flex:none; letter-spacing:.09em; text-transform:uppercase;
+  color:#46545F; font-weight:700; line-height:1.1;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.g-row span{
+  flex:1 1 auto; min-width:0; line-height:1.1;
+  font-family:var(--disp); font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* baris yang sengaja dikosongkan untuk ditulis tangan pakai spidol */
+.g-write{
+  display:flex; flex-direction:column; justify-content:flex-end;
+  border-bottom:0.8mm solid #0E1620;
+  min-width:0;
+}
+.g-write b{
+  letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+  color:#0E1620; line-height:1.1;
+}
+.g-write span{
+  font-family:var(--disp); font-weight:600; line-height:1.1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+.g-big2{ display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.g-big2 b{
+  letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+  color:#46545F; line-height:1.2;
+}
+.g-big2 .big{ width:100%; }
+
+.g-route{ display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.g-route .rt{ display:flex; flex-direction:column; min-width:0; }
+.g-route .rt b{
+  letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+  color:#46545F; line-height:1.25;
+}
+.g-route .rt span{
+  font-family:var(--disp); font-weight:700; line-height:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.g-route .rt.to span{ border-bottom:0.7mm solid #0E1620; padding-bottom:.15em; }
+.g-route .ar{ font-size:.9em; line-height:1; color:#0E1620; margin:.25em 0; }
+
+.g-codes{ display:flex; align-items:center; min-width:0; }
+.g-codes.q-only{ justify-content:center; }
+.g-codes .qr{ height:100%; width:auto; aspect-ratio:1/1; flex:none; }
+.g-codes .bcwrap{
+  flex:1 1 auto; min-width:0; height:100%;
+  display:flex; flex-direction:column; justify-content:center; gap:.15em;
+}
+.g-codes .bcwrap .bc{ flex:1 1 auto; min-height:0; }
+.g-codes .bctxt{
+  font-family:var(--mono); letter-spacing:.1em; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+.g-qrbig{ display:flex; align-items:center; justify-content:center; min-height:0; }
+.g-qrbig .qr{ height:100%; width:auto; aspect-ratio:1/1; max-width:100%; }
+
+.g-bc{ display:flex; flex-direction:column; min-height:0; gap:.15em; }
+.g-bc .bc{ flex:1 1 auto; min-height:0; }
+.g-bc .bctxt{
+  font-family:var(--mono); letter-spacing:.1em; text-align:center; flex:none;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+.g-chips{ display:flex; min-height:0; }
+.g-chips.col{ flex-direction:column; }
+.g-chips .chip{ flex:1 1 0; min-width:0; }
+
+.g-boxes{ display:flex; flex-wrap:wrap; align-content:center; color:#0E1620; }
+.g-box{ display:flex; align-items:center; gap:.4em; min-width:0; }
+.g-box i{
+  flex:none; display:block;
+  border:0.35mm solid #0E1620; border-radius:0.3mm;
+}
+.g-box span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; }
+
+.g-marks{ display:flex; align-items:center; justify-content:center; min-height:0; }
+.g-marks .gm{ height:auto; max-height:100%; color:#0E1620; flex:none; }
+
+.g-note{
+  display:flex; align-items:center; justify-content:center;
+  background:#0E1620; color:#fff;
+  font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+  line-height:1;                 /* tingginya sudah diatur grid */
+  white-space:nowrap; overflow:hidden;
+}
+.sheet.ink .g-note{
+  background:transparent; color:#0E1620;
+  box-shadow:inset 0 0 0 0.4mm #0E1620;
+}
+
+.g-foot{
+  display:flex; align-items:center; justify-content:space-between; gap:.6em;
+  border-top:0.2mm solid #8A97A3;
+  font-family:var(--mono); letter-spacing:.04em; color:#46545F;
+  white-space:nowrap;
+}
+.g-foot span{ overflow:hidden; text-overflow:ellipsis; }
+
+/* seluruh label diwarnai zona — untuk membagi area gudang */
+.lbl-gen.fill-zona{
+  background:var(--zc,var(--z-lain));
+  border-color:var(--zc,var(--z-lain));
+  color:#fff;
+}
+.lbl-gen.fill-zona .g-meta,
+.lbl-gen.fill-zona .g-hero .g-sub em{ color:rgba(255,255,255,.82); }
+.lbl-gen.fill-zona .g-meta span:first-child{ color:#fff; }
+.sheet.ink .lbl-gen.fill-zona{
+  background:transparent; color:#0E1620;
+  border-color:var(--zc,var(--z-lain)); border-width:1.2mm;
+}
+.sheet.ink .lbl-gen.fill-zona .g-meta,
+.sheet.ink .lbl-gen.fill-zona .g-meta span:first-child{ color:#46545F; }
+
+/* =====================================================================
    HALAMAN KALIBRASI
    Kotak 100 × 100 mm + penggaris. Dipakai untuk memastikan printer
    benar-benar mencetak 1:1.

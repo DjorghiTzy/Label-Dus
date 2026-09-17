@@ -17,7 +17,7 @@
 
   /* ================================ STATE ================================ */
   var DEF = {
-    tpl: 'rak100',
+    tpl: 'rak100', fam: 'rak',
     paper: 'a4', orient: 'portrait', paperW: 100, paperH: 150,
     lock: true, cellW: 100, cellH: 25,
     cols: 2, rows: 10, margin: 4, gap: 2,
@@ -697,24 +697,50 @@
     $('selPaper').innerHTML = h;
   }
 
+  function famOf(key) {
+    for (var i = 0; i < T.FAMILIES.length; i++) if (T.FAMILIES[i].key === key) return T.FAMILIES[i];
+    return T.FAMILIES[0];
+  }
+
+  /* Pemilih hanya menampilkan satu keluarga. Dua puluh delapan kotak
+     sekaligus terlalu panjang untuk digulir di panel sempit. */
+  /* Tinggi gambaran mini mengikuti bentuk kertasnya, supaya lembar
+     mendatar dan label thermal tidak terlihat sama dengan A4 tegak. */
+  function miniHeight(t) {
+    var pp = T.PAPERS[t.paper] || T.PAPERS.a4;
+    var w = pp.w, hh = pp.h, sw;
+    if (t.orient === 'landscape') { sw = w; w = hh; hh = sw; }
+    var v = 34 * Math.sqrt((hh / w) / (297 / 210));
+    return Math.max(18, Math.min(46, Math.round(v)));
+  }
+
   function buildTplPicker() {
-    var h = [], i, t, c, r, cells;
-    for (i = 0; i < T.TEMPLATES.length; i++) {
-      t = T.TEMPLATES[i];
-      c = t.mini[0]; r = t.mini[1];
+    var list = T.byFamily(opts.fam), h = [], i, t, c, r, cells, n;
+    for (i = 0; i < list.length; i++) {
+      t = list[i];
+      c = t.mini[0]; r = Math.min(t.mini[1], 12);
       cells = '';
-      for (var n = 0; n < Math.min(c * r, 24); n++) cells += '<i></i>';
+      for (n = 0; n < c * r; n++) cells += '<i></i>';
       h.push('<button type="button" class="tpl" role="radio" aria-checked="false" data-tpl="' + t.key + '">' +
-             '<span class="tpl-mini" style="grid-template-columns:repeat(' + c + ',1fr);' +
-             'grid-template-rows:repeat(' + Math.min(r, 8) + ',1fr)">' + cells + '</span>' +
+             '<span class="tpl-mini" style="height:' + miniHeight(t) + 'px;' +
+             'grid-template-columns:repeat(' + c + ',1fr);' +
+             'grid-template-rows:repeat(' + r + ',1fr)">' + cells + '</span>' +
              '<b>' + T.esc(t.nama) + '</b><small>' + T.esc(t.ukuran) + '</small></button>');
     }
     $('tplPicker').innerHTML = h.join('');
+
+    els('#famTabs .famtab').forEach(function (b) {
+      var on_ = b.getAttribute('data-fam') === opts.fam;
+      b.className = 'famtab' + (on_ ? ' is-on' : '');
+      b.setAttribute('aria-selected', on_ ? 'true' : 'false');
+    });
+    $('famNote').textContent = famOf(opts.fam).desc + ' ' + list.length + ' template.';
   }
 
   function selectTemplate(key, resetDefaults) {
     var t = T.byKey(key);
     opts.tpl = t.key;
+    if (t.fam) opts.fam = t.fam;
     if (resetDefaults) {
       opts.paper = t.paper; opts.orient = t.orient;
       opts.cols = t.cols; opts.rows = t.rows;
@@ -734,6 +760,7 @@
   function syncControls() {
     var t = T.byKey(opts.tpl);
 
+    if (!el('#tplPicker .tpl[data-tpl="' + opts.tpl + '"]')) buildTplPicker();
     els('#tplPicker .tpl').forEach(function (b) {
       var on_ = b.getAttribute('data-tpl') === opts.tpl;
       b.className = 'tpl' + (on_ ? ' is-on' : '');
@@ -860,6 +887,8 @@
     bindTable();
 
     var had = restoreState();
+    opts.fam = T.byKey(opts.tpl).fam || 'rak';
+    buildTplPicker();
     if (!had || !rows.length) selectTemplate(opts.tpl, true);
     syncControls();
     renderTable();
@@ -1007,6 +1036,20 @@
     on($('fOnlyChecked'), 'change', function () { filters.onlyChecked = this.checked; renderTable(); });
 
     /* ---- panel cetak ---- */
+    on($('famTabs'), 'click', function (e) {
+      var b = e.target;
+      while (b && b !== this && !(b.getAttribute && b.getAttribute('data-fam'))) b = b.parentNode;
+      if (!b || b === this) return;
+      var fam = b.getAttribute('data-fam');
+      if (fam === opts.fam) return;
+      opts.fam = fam;
+      buildTplPicker();
+      /* pindah ke template pertama keluarga itu supaya pratinjau ikut berganti */
+      var first = T.byFamily(fam)[0];
+      if (first) selectTemplate(first.key, true);
+      schedulePreview(); saveSoon();
+    });
+
     on($('tplPicker'), 'click', function (e) {
       var b = e.target;
       while (b && b !== this && !(b.getAttribute && b.getAttribute('data-tpl'))) b = b.parentNode;
