@@ -982,11 +982,15 @@
      sekarang kolomnya ada dua puluh delapan. Kolom yang sama untuk semua
      baris (tanggal, supplier, GRN, PIC) diisi sampleRows().
 
+     SETIAP baris punya Lokasi final. Data contoh memang untuk langsung
+     dicetak, jadi tidak ada satu pun yang keluar bertanda "Lokasi belum
+     diset" — keadaan itu sudah punya tempatnya sendiri, yaitu data asli
+     yang prefiksnya belum ditindaklanjuti.
+
      Isinya sengaja bervariasi supaya seluruh keadaan aplikasi kelihatan
      tanpa perlu menyiapkan data sendiri:
-       - lima prefix dengan lokasi final lengkap (A-CHR .. E-TGL)
-       - tiga baris tanpa lokasi final, untuk mencoba "Generate lokasi"
-         dan melihat tanda "Lokasi belum diset" di label
+       - lima prefix bergaya gudang ACC (A-CHR .. E-TGL) dengan lokasi
+         final lengkap sampai posisi
        - satu REVIEW TIPE dan satu REVIEW BARCODE
        - sembilan baris bergaya dus (kode dus, dus ke, total dus) supaya
          template Label dus juga ada isinya
@@ -1038,11 +1042,10 @@
       brand: 'Anker', tipe: 'A2310', golongan: 'Car Charger', area: 'B', kodeGol: 'CCH',
       prefix: 'B-CCH', lokasi: 'B-CCH-R01-B01-P02', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    /* belum punya lokasi final — coba tombol "Generate lokasi" */
     { barcode: '8992388011234', sku: 'Robot Car Chr RT-C09 17W Dual Usb',
       brand: 'Robot', tipe: 'RT-C09', golongan: 'Car Charger', area: 'B', kodeGol: 'CCH',
-      prefix: 'B-CCH', lokasi: '', qty: '1 PCS',
-      zona: 'BARU', status: 'NEW', statusMap: '' },
+      prefix: 'B-CCH', lokasi: 'B-CCH-R01-B01-P03', qty: '1 PCS',
+      zona: 'BARU', status: 'NEW', statusMap: 'DRAFT OK' },
 
     /* ---------- C-CBL · Kabel ---------- */
     { barcode: '194644072148', sku: 'Anker Powerline III Usb-C To Usb-C 1.8M Black',
@@ -1075,11 +1078,10 @@
       brand: 'Baseus', tipe: 'PPBD0501', golongan: 'Powerbank', area: 'D', kodeGol: 'PWB',
       prefix: 'D-PWB', lokasi: 'D-PWB-R01-B01-P02', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    /* belum punya lokasi final */
     { barcode: '8992388019012', sku: 'Vivan PwB VPB-P10 10000mAh Slim Black',
       brand: 'Vivan', tipe: 'VPB-P10', golongan: 'Powerbank', area: 'D', kodeGol: 'PWB',
-      prefix: 'D-PWB', lokasi: '', qty: '1 PCS',
-      zona: 'BARU', status: 'NEW', statusMap: '' },
+      prefix: 'D-PWB', lokasi: 'D-PWB-R01-B01-P03', qty: '1 PCS',
+      zona: 'BARU', status: 'NEW', statusMap: 'DRAFT OK' },
 
     /* ---------- E-TGL · Tempered glass ---------- */
     { barcode: '8992388021001', sku: 'Tempered Glass iPhone 15 Pro Clear Full Cover',
@@ -1095,41 +1097,40 @@
     { kode: '1061', sku: 'MC01', varian: 'WHITE', qty: '25 BOX', barcode: '8991002101061',
       kodeDus: 'MC01-1W', dusKe: 1, totalDus: 1, brand: 'Meeplus', tipe: 'MC01',
       golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-F2-S03', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
+      lokasi: 'G2-MCB-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { kode: '1061', sku: 'MC01', varian: 'BLACK', qty: '25 BOX', barcode: '8991002101062',
       kodeDus: 'MC01-1B', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'MC01',
       golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-F2-S04', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
+      lokasi: 'G2-MCB-R01-B01-P02', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { kode: '1062', sku: 'MC02', varian: 'WHITE', qty: '113 PCS', barcode: '8991002101070',
       kodeDus: 'MC02-1W', dusKe: 1, totalDus: 4, brand: 'Meeplus', tipe: 'MC02',
       golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-F3-S01', zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
+      lokasi: 'G2-MCB-R01-B01-P03', zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
     { kode: '1062', sku: 'MC02', varian: 'WHITE', qty: '113 PCS', barcode: '8991002101070',
       kodeDus: 'MC02-2W', dusKe: 2, totalDus: 4, brand: 'Meeplus', tipe: 'MC02',
       golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-F3-S01', zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
+      lokasi: 'G2-MCB-R01-B01-P04', zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
     { kode: '1071', sku: 'TP18', varian: 'NATURAL', qty: '18 TPL', barcode: '8991002101087',
       kodeDus: 'TP18-1N', dusKe: 1, totalDus: 3, brand: 'Meeplus', tipe: 'TP18',
       golongan: 'Tempat Pensil', area: 'G1', kodeGol: 'TPL', prefix: 'G1-TPL',
-      lokasi: 'G1-A1-S07', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    /* belum punya lokasi final */
+      lokasi: 'G1-TPL-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { kode: '1088', sku: 'KB44', varian: 'BIRU', qty: '40 PCS', barcode: '8991002101094',
       kodeDus: 'KB44-1B', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'KB44',
       golongan: 'Kabel', area: 'G4', kodeGol: 'KBL', prefix: 'G4-KBL',
-      lokasi: '', zona: 'BARU', status: 'NEW', statusMap: '' },
+      lokasi: 'G4-KBL-R01-B02-P06', zona: 'BARU', status: 'NEW', statusMap: 'DRAFT OK' },
     { kode: '1093', sku: 'RS07', varian: 'MERAH', qty: '60 PCS', barcode: '8991002101100',
       kodeDus: 'RS07-1M', dusKe: 1, totalDus: 1, brand: 'Meeplus', tipe: 'RS07',
       golongan: 'Rak Susun', area: 'G3', kodeGol: 'RSK', prefix: 'G3-RSK',
-      lokasi: 'G3-C2-S11', zona: 'MERAH', status: 'RUSAK', statusMap: 'DRAFT OK',
+      lokasi: 'G3-RSK-R01-B01-P01', zona: 'MERAH', status: 'RUSAK', statusMap: 'DRAFT OK',
       catatan: 'Dus penyok di sudut, isi dicek ulang' },
     { kode: '1101', sku: 'GL22', varian: 'CLEAR', qty: '12 SET', barcode: '8991002101117',
       kodeDus: 'GL22-1C', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'GL22',
       golongan: 'Gelas', area: 'G1', kodeGol: 'GLS', prefix: 'G1-GLS',
-      lokasi: 'G1-B4-S02', zona: 'HOLD', status: 'HOLD', statusMap: 'DRAFT OK' },
+      lokasi: 'G1-GLS-R01-B01-P01', zona: 'HOLD', status: 'HOLD', statusMap: 'DRAFT OK' },
     { kode: '1115', sku: 'ND09', varian: 'GREY', qty: '96 PCS', barcode: '8991002101124',
       kodeDus: 'ND09-1G', dusKe: 1, totalDus: 1, brand: 'Meeplus', tipe: 'ND09',
       golongan: 'Nampan Dulang', area: 'G4', kodeGol: 'NDL', prefix: 'G4-NDL',
-      lokasi: 'G4-D1-S05', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' }
+      lokasi: 'G4-NDL-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' }
   ];
 
   /* Supplier dan GRN dibuat berulang per tiga baris supaya kelihatan

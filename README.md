@@ -138,13 +138,15 @@ yang sengaja dibuat lengkap: barcode, nama, brand, tipe, golongan, area,
 prefix, lokasi final, rak/baris/posisi, QR payload, status mapping,
 supplier, GRN, tanggal, dan PIC.
 
+**Setiap baris punya Lokasi final** — data contoh memang untuk langsung
+dicetak, jadi tidak ada satu pun yang keluar bertanda "Lokasi belum
+diset".
+
 Isinya bervariasi supaya seluruh keadaan aplikasi kelihatan tanpa perlu
 menyiapkan data sendiri:
 
 - lima prefix bergaya gudang ACC (`A-CHR`, `B-CCH`, `C-CBL`, `D-PWB`,
-  `E-TGL`) dengan lokasi final lengkap
-- tiga baris **tanpa** lokasi final, untuk mencoba **Generate lokasi**
-  dan melihat tanda "Lokasi belum diset" di label
+  `E-TGL`) dengan lokasi final lengkap sampai posisi
 - satu `REVIEW TIPE` dan satu `REVIEW BARCODE`
 - sembilan baris bergaya dus (kode dus, dus ke, total dus) supaya
   template Label dus juga ada isinya
@@ -177,6 +179,12 @@ Yang dipegang:
 Lokasi final tetap bisa diketik sendiri di tabel. Yang diketik orang
 menang — aplikasi tidak pernah mengembalikannya ke hasil generator, hanya
 mengingatkan kalau formatnya salah atau lokasinya kembar.
+
+Kalau file yang diimpor cuma punya **Prefix lokasi** — misalnya file
+lama yang belum punya kolom `Lokasi Final` — barisnya tetap masuk, tapi
+aplikasi langsung memberi tahu berapa yang belum punya lokasi dan
+menyorot tombol **Generate lokasi**. Jadi tidak ada lagi yang baru
+ketahuan saat melihat pratinjau penuh tulisan "Lokasi belum diset".
 
 Tombol **Print label rak** mencetak baris yang dicentang memakai lokasi
 yang sudah tersimpan. Tidak ada lokasi yang dibuat di jalur cetak; baris
