@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="description" content="Membuat dan mencetak label dus dan label rak gudang dengan ukuran yang pasti saat dicetak. Jalan tanpa internet.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#18212C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EDF0F4" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232B3D51'/%3E%3Cpath d='M-6 10L10-6M-2 22L22-2M6 30L30 6M18 34L34 18' stroke='%23E8A00C' stroke-width='6'/%3E%3C/svg%3E">
 <title>Label Dus &amp; Rak — Label Gudang</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <link rel="stylesheet" href="assets/app.css">
@@ -24,7 +29,13 @@
       </span>
     </div>
 
+    <div class="dbpick" id="dbPick" role="group" aria-label="Basis data aktif">
+      <span class="dbpick-lbl">Basis data</span>
+      <div class="dbpick-btns" id="dbBtns"><span class="db-ind" id="dbInd" aria-hidden="true"></span></div>
+    </div>
+
     <nav class="tabs" role="tablist" aria-label="Bagian aplikasi">
+      <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
       <button type="button" class="tab is-on" id="tabData" role="tab" aria-selected="true" aria-controls="viewData">Data label</button>
       <button type="button" class="tab" id="tabPrint" role="tab" aria-selected="false" aria-controls="viewPrint">Template &amp; cetak</button>
     </nav>
@@ -45,10 +56,15 @@
         <button type="button" class="btn btn-primary" id="btnAdd">+ Baris</button>
         <button type="button" class="btn" id="btnImport">Impor Excel / CSV</button>
         <button type="button" class="btn" id="btnPaste">Tempel dari Excel</button>
+        <button type="button" class="btn" id="btnKatalog" title="Ambil dari katalog produk">Cari produk</button>
         <button type="button" class="btn" id="btnSplit" title="Satu baris dengan Total Dus 5 menjadi 5 baris">Pecah per dus</button>
         <button type="button" class="btn" id="btnRenum" title="Isi ulang seluruh Label ID berurutan">Nomori ulang</button>
         <button type="button" class="btn" id="btnDupSel" title="Gandakan baris tercentang">Gandakan</button>
         <button type="button" class="btn btn-danger" id="btnDelSel" title="Hapus baris tercentang">Hapus</button>
+
+        <span class="tb-sep" aria-hidden="true"></span>
+
+        <button type="button" class="btn" id="btnUndo" title="Urungkan tindakan terakhir (Ctrl+Z)" disabled>↶ Urungkan</button>
 
         <span class="tb-sep" aria-hidden="true"></span>
 
@@ -114,14 +130,21 @@
     </section>
 
     <!-- ======================= TAB 2 : TEMPLATE & CETAK ======================= -->
-    <section class="view" id="viewPrint" role="tabpanel" aria-labelledby="tabPrint" hidden>
+    <section class="view" id="viewPrint" role="tabpanel" aria-labelledby="tabPrint" aria-hidden="true">
       <div class="split">
 
         <aside class="panel" id="panel">
           <div class="panel-scroll">
 
             <section class="grp">
-              <h3>Template label</h3>
+              <div class="tpl-sticky">
+                <h3>Template label</h3>
+                <div class="famtabs" id="famTabs" role="tablist" aria-label="Jenis label">
+                  <button type="button" class="famtab is-on" data-fam="rak" role="tab" aria-selected="true">Label rak</button>
+                  <button type="button" class="famtab" data-fam="dus" role="tab" aria-selected="false">Label dus</button>
+                </div>
+              </div>
+              <p class="famnote" id="famNote"></p>
               <div class="tpl-picker" id="tplPicker" role="radiogroup" aria-label="Pilih template label"></div>
               <p class="note" id="tplNote"></p>
             </section>
@@ -173,6 +196,14 @@
                 </label>
                 <label class="fld"><span>Salinan per label</span><input type="number" id="inCopies" min="1" max="50" step="1"></label>
               </div>
+              <div class="row">
+                <label class="fld"><span>Cetak lembar ke-</span>
+                  <input type="number" id="inPageFrom" min="1" step="1" placeholder="1"></label>
+                <label class="fld"><span>sampai lembar</span>
+                  <input type="number" id="inPageTo" min="1" step="1" placeholder="semua"></label>
+              </div>
+              <p class="hint">Kosongkan keduanya untuk mencetak semua. Isi kalau perlu
+                <b>mencetak ulang</b> sebagian, misalnya setelah kertas macet di lembar 7.</p>
               <p class="warn" id="fitWarn" hidden></p>
             </section>
 
@@ -194,6 +225,10 @@
             <section class="grp">
               <h3>Sebelum mencetak</h3>
               <ul class="checklist">
+                <li>Buka <b>Setelan lainnya</b> / <b>More settings</b>, lalu
+                  <b>hilangkan centang</b> pada <b>Header dan footer</b> /
+                  <b>Headers and footers</b>. Tanpa ini, browser ikut mencetak
+                  alamat halaman, tanggal, judul, dan nomor halaman.</li>
                 <li>Di dialog printer, pilih margin <b>None</b> / <b>Tidak ada</b>.</li>
                 <li>Skala harus <b>100%</b> — jangan "Fit to page".</li>
                 <li>Centang <b>Background graphics</b> / <b>Grafik latar</b>.</li>
@@ -227,7 +262,13 @@
           </div>
           <div class="canvas-scroll" id="canvasScroll">
             <div class="stage-box" id="stageBox"><div class="stage" id="stage"></div></div>
-            <p class="canvas-empty" id="canvasEmpty" hidden>Belum ada baris yang dicentang untuk dicetak.</p>
+            <div class="canvas-empty" id="canvasEmpty" hidden>
+              <div class="ce-box">
+                <h2 id="ceJudul">Belum ada data label</h2>
+                <p id="cePesan"></p>
+                <div class="ce-aksi" id="ceAksi"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -294,6 +335,48 @@
   </div>
 </div>
 
+<div class="modal modal-wide" id="mKat" hidden role="dialog" aria-modal="true" aria-labelledby="katJudul">
+  <div class="modal-head">
+    <h2 id="katJudul">Cari produk</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">&#10005;</button>
+  </div>
+  <div class="modal-body">
+    <label class="search kat-search">
+      <span class="search-ico" aria-hidden="true">&#8981;</span>
+      <input type="search" id="katCari" placeholder="Ketik nama produk atau barcode…" autocomplete="off">
+    </label>
+    <p class="note" id="katInfo"></p>
+    <div class="kattable-wrap">
+      <table class="kattable">
+        <thead><tr>
+          <th class="kat-pick"><input type="checkbox" id="katAll" aria-label="Centang semua hasil"></th>
+          <th>Barcode</th><th>Nama produk</th><th class="num">Stok</th><th>Satuan</th>
+        </tr></thead>
+        <tbody id="katBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <span class="note" id="katPilih">Belum ada yang dipilih</span>
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close>Batal</button>
+    <button type="button" class="btn btn-primary" id="katOk">Tambah ke daftar</button>
+  </div>
+</div>
+
+<div class="modal modal-ask" id="mAsk" hidden role="dialog" aria-modal="true" aria-labelledby="askJudul">
+  <div class="modal-head">
+    <h2 id="askJudul">Konfirmasi</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">&#10005;</button>
+  </div>
+  <div class="modal-body"><p id="askPesan"></p></div>
+  <div class="modal-foot">
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close id="askBatal">Batal</button>
+    <button type="button" class="btn btn-primary" id="askOk">Ya</button>
+  </div>
+</div>
+
 <div class="modal" id="mHelp" hidden role="dialog" aria-modal="true" aria-labelledby="mHelpTitle">
   <div class="modal-head">
     <h2 id="mHelpTitle">Bantuan singkat</h2>
@@ -305,6 +388,11 @@
 
 <div class="drop" id="dropHint" hidden><div>Lepas file di sini</div></div>
 <div class="toast" id="toast" hidden></div>
+
+<!-- Daftar rekomendasi produk. Diletakkan langsung di bawah <body> dan
+     diposisikan dengan position:fixed, supaya tidak terpotong oleh
+     tabel yang bisa digulir. -->
+<div class="tip" id="tip" hidden role="listbox" aria-label="Rekomendasi produk"></div>
 
 <input type="file" id="fileIn" accept=".xlsx,.xlsm,.csv,.txt" hidden>
 <input type="file" id="fileJson" accept=".json" hidden>
@@ -321,6 +409,8 @@
 <script src="vendor/xlsx.mini.min.js"></script>
 <script src="vendor/qrcode.js"></script>
 <script src="vendor/JsBarcode.code128.min.js"></script>
+<script src="data/katalog-cv.js"></script>
+<script src="data/katalog-ol.js"></script>
 <script src="assets/data.js"></script>
 <script src="assets/templates.js"></script>
 <script src="assets/app.js"></script>

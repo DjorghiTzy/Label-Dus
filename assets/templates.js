@@ -63,8 +63,11 @@
 
   /* ---- QR ---- */
   var qrOK = (typeof window.qrcode !== 'undefined');
+  var qrCache = {}, qrCacheN = 0;
+
   function qrSvg(text) {
     if (!qrOK || !text) return '';
+    if (qrCache[text] !== undefined) return qrCache[text];
     var q;
     try {
       q = window.qrcode(0, 'M');
@@ -77,10 +80,14 @@
         if (q.isDark(r, c)) d += 'M' + c + ' ' + r + 'h1v1h-1z';
       }
     }
-    return '<svg class="qr" viewBox="0 0 ' + s + ' ' + s + '" preserveAspectRatio="xMidYMid meet" ' +
-           'shape-rendering="crispEdges" aria-hidden="true">' +
-           '<rect width="' + s + '" height="' + s + '" fill="#FFFFFF"/>' +
-           '<path transform="translate(' + quiet + ',' + quiet + ')" fill="#000000" d="' + d + '"/></svg>';
+    var svg = '<svg class="qr" viewBox="0 0 ' + s + ' ' + s + '" preserveAspectRatio="xMidYMid meet" ' +
+              'shape-rendering="crispEdges" aria-hidden="true">' +
+              '<rect width="' + s + '" height="' + s + '" fill="#FFFFFF"/>' +
+              '<path transform="translate(' + quiet + ',' + quiet + ')" fill="#000000" d="' + d + '"/></svg>';
+    /* dibatasi supaya data besar tidak menggerus ingatan browser */
+    if (qrCacheN > 4000) { qrCache = {}; qrCacheN = 0; }
+    qrCache[text] = svg; qrCacheN++;
+    return svg;
   }
 
   /* ---- barcode: kerangka saja, diisi app.js setelah masuk DOM ---- */
@@ -96,6 +103,12 @@
       if (k === 'dusText') return D.dusText(row);
       if (k === 'bigCode') return D.bigCode(row);
       if (k === 'tanggal') return D.fmtDate(row.tanggal);
+      /* {lokasi} berarti lokasi final. Kalau belum diset, bagian ini
+         kosong — QR tidak pernah berisi prefix yang menyesatkan. */
+      if (k === 'lokasi') return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '');
+      if (k === 'barcode') return String(row.barcode || '');
+      /* Kolom QR Payload dari file mapping dipakai apa adanya. */
+      if (k === 'qrPayload') return D.qrPayload ? D.qrPayload(row) : String(row.qrPayload || '');
       return row[k] == null ? '' : String(row[k]);
     }).replace(/\|{2,}/g, '|').replace(/^\||\|$/g, '');
   }
@@ -106,7 +119,10 @@
   }
 
   function lokasiOf(row, o) {
-    return o.blankLokasi ? '' : String(row.lokasi || '').trim();
+    if (o.blankLokasi) return '';
+    /* Selalu lewat data.js: prefix (A-CHR) tidak pernah lolos sebagai
+       lokasi final, dan R/B/P tidak pernah dikarang aplikasi. */
+    return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '').trim();
   }
 
   function subOf(row) {
@@ -114,6 +130,35 @@
     var vr = String(row.varian || '').trim();
     if (sku && vr) return esc(sku) + ' <em>·</em> ' + esc(vr);
     return esc(sku || vr);
+  }
+
+  /* ------------------------------------------------------------------
+     TGL + PIC
+     Dua kolom ini muncul di posisi yang sama pada semua template, jadi
+     siapa pun yang membaca label tahu di mana mencarinya. Kalau datanya
+     kosong, garisnya tetap dicetak supaya bisa ditulis tangan.
+     ------------------------------------------------------------------ */
+  function tglOf(row) { return D.fmtDate(row.tanggal) || ''; }
+  function picOf(row) { return String(row.pic || '').trim(); }
+
+  /* Ringkasan satu baris untuk label sempit: "12/09 · BUDI" */
+  function jejak(row) {
+    var t = tglOf(row), pc = picOf(row);
+    if (t && pc) return t + ' · ' + pc;
+    return t || pc;
+  }
+
+  /* Bingkai. Digambar sebagai lapisan, bukan border, supaya ukuran
+     fisik label tidak ikut berubah karena tebal garis. */
+  function frameHTML(kind, sikuMm) {
+    if (kind === 'nol') return '';
+    if (!kind) kind = 'lembut';
+    if (kind === 'siku') {
+      var sz = ' style="width:' + mmv(sikuMm || 5) + ';height:' + mmv(sikuMm || 5) + '"';
+      return '<div class="fr fr-siku" aria-hidden="true">' +
+             '<i' + sz + '></i><i' + sz + '></i><i' + sz + '></i><i' + sz + '></i></div>';
+    }
+    return '<div class="fr fr-' + kind + '" aria-hidden="true"></div>';
   }
 
   function subPlain(row) {
@@ -125,36 +170,71 @@
      1. LABEL RAK — 100 × 25 mm (ukuran pasti)
      ================================================================== */
   function renderRak100(row, o) {
-    var loc = lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
+    var lok = lokasiOf(row, o);
+    var belum = !lok;
     var useQr = o.qr && qrOK;
-    /* lebar tersisa untuk kode lokasi: 100 − pita − sisi kanan − padding − garis */
-    var avail = 100 - 4.5 - 0.6 - 3.2 - (useQr ? 18.2 : 0) - 6.4;
-    var fs = fit(loc, avail, 15, 0.5) * o.k;
 
-    var meta = [];
-    if (subPlain(row)) meta.push('<span class="sku">' + esc(subPlain(row)) + '</span>');
-    if (row.qty) meta.push('<span class="qty">' + esc(row.qty) + '</span>');
-    if (D.dusText(row)) meta.push('<span class="dus">' + esc(D.dusText(row)) + '</span>');
-    if (o.meta && row.tanggal) meta.push('<span class="dus">' + esc(D.fmtDate(row.tanggal)) + '</span>');
+    /* Urutan baca di lorong: lokasi dulu, baru nama barang, baru tipe dan
+       barcode. Ukuran puncak; app.js menyusutkan atau memecah dua baris. */
+    var fs = 11 * o.k;
+
+    var nama = String(row.sku || '').trim() || String(row.varian || '').trim();
+    var kode = String(row.barcode || '').trim();
+    var tipe = String(row.tipe || '').trim();
+    var st = D.statusMapping ? D.statusMapping(row) : '';
+
+    /* Baris kecil paling bawah. Tipe/model didahulukan karena itu yang
+       dipakai orang gudang untuk membedakan barang yang mirip; kode
+       golongan terakhir, sekadar pelengkap. */
+    var kecil = [];
+    if (tipe) kecil.push('<span class="tipe">' + esc(tipe) + '</span>');
+    if (kode) kecil.push('<span class="bcno">' + esc(kode) + '</span>');
+    if (!kode && !tipe && row.qty) kecil.push('<span class="bcno">' + esc(row.qty) + '</span>');
+    /* Baris berstatus review tetap tercetak — hanya ditandai. */
+    var tanda = st === 'barcode' ? '<span class="r-tanda">QR belum final</span>'
+              : st === 'tipe' ? '<span class="r-tanda halus">Cek tipe</span>' : '';
+    if (tanda) kecil.push(tanda);
+    /* Kode golongan paling akhir dalam urutan penting, jadi ia yang
+       mengalah begitu ada tanda status — barisnya cuma selebar itu. */
+    if (row.kodeGol && !tanda) kecil.push('<span class="gol">' + esc(row.kodeGol) + '</span>');
+
+    /* Pita kiri memuat area kalau ada, kalau tidak zona. */
+    var pita = String(row.area || '').trim() || String(row.zona || '').trim();
+
+    var hero;
+    if (belum) {
+      /* Lokasi final belum diisi. Prefix (A-CHR) ditampilkan sebagai
+         keterangan, bukan sebagai alamat — label ini memang belum siap
+         tempel, dan itu harus kelihatan sebelum orang menempelnya. */
+      var pre = String(row.prefix || '').trim();
+      hero = '<div class="r-belum">Lokasi belum diset</div>' +
+             '<div class="r-pre">' + (pre ? 'Prefix ' + esc(pre) + ' &middot; isi lokasi final dulu'
+                                          : 'Isi kolom Lokasi final dulu') + '</div>';
+    } else {
+      hero = '<div class="big r-loc" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+             esc(lok) + '</div>';
+    }
 
     return '' +
-      '<div class="band"></div>' +
+      frameHTML('pita') +
+      '<div class="r-band">' + (pita ? '<span>' + esc(pita) + '</span>' : '') + '</div>' +
       '<div class="r-main">' +
-        '<div class="big r-loc" data-fit style="font-size:' + fs + 'mm">' + esc(loc || '—') + '</div>' +
-        (meta.length ? '<div class="r-meta">' + meta.join('') + '</div>' : '') +
+        hero +
+        (nama ? '<div class="r-nama">' + esc(nama) + '</div>' : '') +
+        (kecil.length ? '<div class="r-meta">' + kecil.join('') + '</div>' : '') +
       '</div>' +
       '<div class="r-side">' +
         (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
-        (row.zona ? '<div class="chip">' + esc(row.zona) + '</div>' : '') +
       '</div>';
   }
 
   /* ==================================================================
-     2. LABEL DUS — 100 × 250 mm (ukuran pasti)
+     2. LABEL DUS — 100 × 200 mm (ukuran pasti)
+     Lebar 10 cm, panjang 20 cm. Dua label per lembar A4.
      ================================================================== */
-  function renderDus250(row, o) {
+  function renderDus200(row, o) {
     var code = D.bigCode(row);
-    var fs = fit(code, 91.2, 34, 0.5) * o.k;
+    var fs = 30 * o.k;
     var loc = lokasiOf(row, o);
     var useQr = o.qr && qrOK;
     var useBc = o.barcode && bcOK;
@@ -167,46 +247,41 @@
     }
 
     var list = '';
-    list += drow('Qty / Dus', row.qty || '—');
-    list += drow('Dus', D.dusText(row) || '—');
-    if (o.meta) list += drow('Supplier', row.supplier || '—', 'sm');
-    list += drow('GRN / SJ', row.grn || '—', 'sm');
-    list += drow('Lokasi', loc, 'write');
+    list += drow('Qty / Dus', row.qty || '\u2014');
+    list += drow('Dus', D.dusText(row) || '\u2014');
+    list += drow('GRN / SJ', row.grn || '\u2014', 'sm');
+    list += drow('Supplier', row.supplier || '\u2014', 'sm');
 
-    var codes = '';
-    if (useQr || useBc) {
-      codes = '<div class="d-codes">' +
-        (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
-        (useBc ? '<div class="bcwrap">' + bcSvg(bcText(row)) +
-                 '<div class="bctxt">' + esc(bcText(row)) + '</div></div>' : '') +
-        '</div>';
-    } else {
-      codes = '<div class="d-codes"></div>';
-    }
-
-    var foot = '';
-    if (o.meta) {
-      foot = '<div class="d-foot"><span>' + esc(D.fmtDate(row.tanggal) || '—') + '</span>' +
-             '<span>' + esc(row.pic || '') + '</span></div>';
-    } else {
-      foot = '<div class="d-foot"><span>' + esc(row.pic || '') + '</span><span></span></div>';
-    }
+    var codes = '<div class="d-codes">' +
+      (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
+      (useBc ? '<div class="bcwrap">' + bcSvg(bcText(row)) +
+               '<div class="bctxt">' + esc(bcText(row)) + '</div></div>' : '') +
+      '</div>';
 
     return '' +
+      frameHTML('lembut') +
       '<div class="tbar"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
       '<div class="d-body">' +
         '<div class="d-hero">' +
-          '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
+          '<div class="big" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+          esc(code || '\u2014') + '</div>' +
           (subPlain(row) ? '<div class="sub">' + subOf(row) + '</div>' : '') +
         '</div>' +
         '<div class="d-rule"></div>' +
         '<div class="d-list">' + list + '</div>' +
+        '<div class="d-write"><b>Lokasi rak</b><span>' +
+          (loc ? esc(loc) : '&nbsp;') + '</span></div>' +
         codes +
         '<div class="d-chips">' +
-          '<div class="chip">' + esc(row.zona || '—') + '</div>' +
-          '<div class="chip s">' + esc(row.status || '—') + '</div>' +
+          '<div class="chip">' + esc(row.zona || '\u2014') + '</div>' +
+          '<div class="chip s">' + esc(row.status || '\u2014') + '</div>' +
         '</div>' +
-        foot +
+        '<div class="d-sign">' +
+          '<div class="sg"><b>Tgl</b><span>' + (tglOf(row) ? esc(tglOf(row)) : '&nbsp;') + '</span></div>' +
+          '<div class="sg"><b>PIC</b><span>' + (picOf(row) ? esc(picOf(row)) : '&nbsp;') + '</span></div>' +
+        '</div>' +
+        '<div class="d-foot"><span>' + esc(row.labelId || '') + '</span>' +
+          '<span>' + esc(row.catatan || '') + '</span></div>' +
       '</div>';
   }
 
@@ -226,6 +301,7 @@
     }
 
     return '' +
+      frameHTML('lembut') +
       '<div class="band"></div>' +
       '<div class="g-main">' +
         '<div class="g-top"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
@@ -244,7 +320,7 @@
         '<div class="g-foot">' +
           '<div class="chip">' + esc(row.zona || '—') + '</div>' +
           '<div class="chip s">' + esc(row.status || '—') + '</div>' +
-          (o.meta ? '<div class="when">' + esc(D.fmtDate(row.tanggal)) + '</div>' : '') +
+          (jejak(row) ? '<div class="when">' + esc(jejak(row)) + '</div>' : '') +
         '</div>' +
       '</div>';
   }
@@ -263,8 +339,9 @@
     }
 
     return '' +
+      frameHTML('siku', 4) +
       '<div class="c-top"><span>' + esc(row.labelId || '') + '</span>' +
-        '<span>' + esc(o.meta ? D.fmtDate(row.tanggal) : '') + '</span></div>' +
+        '<span>' + esc(jejak(row)) + '</span></div>' +
       '<div class="c-hero">' +
         '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
         (subPlain(row) ? '<div class="sub">' + subOf(row) + '</div>' : '') +
@@ -297,6 +374,7 @@
     }
 
     return '' +
+      frameHTML('lembut') +
       '<div class="tbar"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
       '<div class="b-body">' +
         '<div class="b-hero">' +
@@ -310,6 +388,7 @@
           r('Qty / Dus', row.qty || '—') +
           r('Dus', D.dusText(row) || '—') +
           (o.meta ? r('Supplier', row.supplier || '—') : '') +
+          r('Tgl / PIC', jejak(row) || '—') +
           r('Lokasi', loc, 'write') +
         '</div>' +
         (useBc ? '<div class="b-bc">' + bcSvg(bcText(row)) +
@@ -327,18 +406,20 @@
   function renderRak(row, o) {
     var loc = lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
     var useQr = o.qr && qrOK;
-    var avail = o.cw - 4 - 5 - (useQr ? 17 : 0) - (row.zona ? 6.5 : 0) - 2;
-    var fs = fit(loc, avail, o.ch * 0.55, 0.5) * o.k;
+    var fs = o.ch * 0.55 * o.k;
 
     var meta = [];
     if (subPlain(row)) meta.push('<span><b>' + esc(subPlain(row)) + '</b></span>');
     if (row.qty) meta.push('<span>' + esc(row.qty) + '</span>');
     if (D.dusText(row)) meta.push('<span>' + esc(D.dusText(row)) + '</span>');
+    if (jejak(row)) meta.push('<span>' + esc(jejak(row)) + '</span>');
 
     return '' +
+      frameHTML('pita') +
       '<div class="band"></div>' +
       '<div class="k-main">' +
-        '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(loc || '—') + '</div>' +
+        '<div class="big" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+        esc(loc || '—') + '</div>' +
         (meta.length ? '<div class="k-meta">' + meta.join('') + '</div>' : '') +
       '</div>' +
       '<div class="k-side">' +
@@ -355,12 +436,14 @@
     var fs = fit(code, o.cw - 5, o.ch * 0.38, 0.5) * o.k;
     var loc = lokasiOf(row, o);
     return '' +
+      frameHTML('siku', 3.5) +
       '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
       (subPlain(row) ? '<div class="m-sub">' + subOf(row) + '</div>' : '') +
       '<div class="m-row"><span>' + esc(row.qty || '') + '</span>' +
         '<span>' + esc(D.dusText(row)) + '</span></div>' +
       '<div class="m-row"><span>' + esc(loc || '·····') + '</span>' +
-        '<span>' + esc(row.zona || '') + '</span></div>';
+        '<span>' + esc(row.zona || '') + '</span></div>' +
+      (jejak(row) ? '<div class="m-row jejak"><span>' + esc(jejak(row)) + '</span></div>' : '');
   }
 
   /* ==================================================================
@@ -375,8 +458,9 @@
     var loc = lokasiOf(row, o);
 
     return '' +
+      frameHTML('lembut') +
       '<div class="t-top"><span>' + esc(row.labelId || '') + '</span>' +
-        '<span>' + esc(o.meta ? D.fmtDate(row.tanggal) : '') + '</span></div>' +
+        '<span>' + esc(jejak(row)) + '</span></div>' +
       '<div class="t-mid">' +
         '<div class="t-txt">' +
           '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
@@ -409,6 +493,7 @@
     }
 
     return '' +
+      frameHTML('karcis') +
       '<div class="hole"></div>' +
       '<div class="t-head"></div>' +
       '<div class="t-status" data-fit style="font-size:' + fsS + 'mm">' + esc(st) + '</div>' +
@@ -419,7 +504,7 @@
       '<div class="t-rows">' +
         r('Qty / Dus', row.qty || '—') +
         r('Dus', D.dusText(row) || '—') +
-        (o.meta ? r('Tanggal', D.fmtDate(row.tanggal) || '—') : '') +
+        r('Tgl / PIC', jejak(row) || '—') +
         r('Lokasi', loc, 'write') +
       '</div>' +
       '<div class="t-foot">' +
@@ -429,97 +514,700 @@
   }
 
   /* ==================================================================
-     DAFTAR TEMPLATE
-     fixed:true  -> ukuran label dikunci dan tidak boleh diubah
-     mini        -> gambaran kecil di pemilih template (kolom, baris)
+     MESIN TATA LETAK BERSAMA
+
+     Dua puluh delapan template tidak berarti dua puluh delapan blok CSS.
+     Sebagian besar template hanyalah susunan blok yang sama dengan urutan
+     dan tinggi berbeda, jadi tata letaknya ditulis sebagai daftar bagian:
+
+         parts: [ {p:'title', h:1.2}, {p:'hero', h:'fill'}, ... ]
+
+     Tinggi (h) dinyatakan dalam satuan u, bukan mm. Satu u dihitung dari
+     ukuran label — u = min(lebar/10, tinggi/4) — sehingga susunan yang
+     sama tetap seimbang pada strip 50 × 25 mm maupun banner A5.
+     Ukuran huruf memakai satuan yang sama, dan app.js menyusutkannya lagi
+     kalau ternyata tidak muat.
      ================================================================== */
-  var TEMPLATES = [
+
+  function mmv(v) { return (Math.round(v * 100) / 100) + 'mm'; }
+
+  /* Satu u = sepersepuluh tinggi label. Artinya setiap label selalu
+     setinggi 10u, berapa pun ukuran fisiknya, jadi anggaran tinggi tiap
+     bagian bisa dihitung dan diperiksa:
+
+         jumlah(h) + 2*padU + (n-1)*gapU <= 10
+
+     Lebar tidak ikut menentukan u — ukuran huruf sudah dibatasi terhadap
+     lebar oleh fit(), lalu app.js menyusutkannya lagi kalau perlu. */
+  function unitOf(cw, ch) { return ch / 10; }
+
+  /* Kolom data yang bisa dipanggil dari daftar parts. */
+  var FIELD = {
+    qty:      ['Qty / Dus', function (r) { return r.qty; }],
+    dus:      ['Dus',       function (r) { return D.dusText(r); }],
+    supplier: ['Supplier',  function (r) { return r.supplier; }],
+    grn:      ['GRN / SJ',  function (r) { return r.grn; }],
+    sku:      ['SKU',       function (r) { return r.sku; }],
+    varian:   ['Varian',    function (r) { return r.varian; }],
+    tanggal:  ['Tanggal',   function (r) { return D.fmtDate(r.tanggal); }],
+    masuk:    ['Masuk',     function (r) { return D.fmtDate(r.tanggal); }],
+    pic:      ['PIC',       function (r) { return r.pic; }],
+    kode:     ['Kode',      function (r) { return r.kode; }],
+    labelId:  ['Label ID',  function (r) { return r.labelId; }],
+    zona:     ['Zona',      function (r) { return r.zona; }],
+    status:   ['Status',    function (r) { return r.status; }],
+    catatan:  ['Catatan',   function (r) { return r.catatan; }],
+    totalDus: ['Total dus', function (r) { return r.totalDus; }],
+    lokasi:   ['Lokasi',    function (r, o) { return lokasiOf(r, o); }],
+    skuvar:   ['SKU',       function (r) { return subPlain(r); }],
+    tgl:      ['Tgl',       function (r) { return D.fmtDate(r.tanggal); }]
+  };
+
+  function fieldVal(key, row, o) {
+    var f = FIELD[key];
+    if (!f) return '';
+    var v = f[1](row, o);
+    return v == null ? '' : String(v);
+  }
+  function fieldLab(key, part) {
+    if (part && part.labels && part.labels[key]) return part.labels[key];
+    return FIELD[key] ? FIELD[key][0] : key;
+  }
+
+  function heroText(row, o, src) {
+    if (src === 'lokasi') {
+      return lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
+    }
+    if (src === 'status') return String(row.status || '—').trim();
+    if (src === 'zona') return String(row.zona || '—').trim();
+    if (src === 'tanggal') return D.fmtDate(row.tanggal) || '—';
+    if (src === 'dus') return D.dusText(row) || '—';
+    if (src && row[src] !== undefined) return String(row[src] || '').trim();
+    return D.bigCode(row);
+  }
+
+  /* Tanda stensil peti — digambar, bukan huruf, supaya tetap terbaca
+     walaupun printernya kasar. */
+  var MARKS = {
+    fragile: '<path d="M20 5h24l-4 20-6 4v22h8v5H22v-5h8V29l-6-4z" fill="currentColor"/>',
+    up: '<path d="M16 58V22M16 8l-9 13h18zM48 58V22M48 8l-9 13h18z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>',
+    dry: '<path d="M32 4v8M6 32a26 26 0 0 1 52 0zM32 32v20a7 7 0 0 1-14 0" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>',
+    stack: '<path d="M6 12h52v16H6zM6 36h52v16H6z" fill="none" stroke="currentColor" stroke-width="5"/>',
+    knife: '<path d="M8 20h30l18 12-18 12H8z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>'
+  };
+  function markSvg(kind, sizeMm) {
+    var d = MARKS[kind];
+    if (!d) return '';
+    return '<svg class="gm" viewBox="0 0 64 64" aria-hidden="true" style="width:' +
+           mmv(sizeMm) + '">' + d + '</svg>';
+  }
+
+  /* ---- satu bagian -> potongan HTML ---- */
+  function partHTML(part, row, o, u) {
+    var i, h, k, v, cls = part.cls ? ' ' + part.cls : '';
+
+    switch (part.p) {
+
+      case 'gap':
+        return '<div class="g-gap"></div>';
+
+      case 'rule':
+        return '<div class="g-rule' + cls + '"></div>';
+
+      case 'title':
+        return '<div class="g-title tbar' + cls + '" style="font-size:' + mmv((part.size || 0.5) * u) +
+               ';padding:0 ' + mmv(0.5 * u) + '">' +
+               '<span>' + esc(part.text || 'Label') + '</span>' +
+               (part.id === false ? '' : '<span class="id">' + esc(row.labelId || '') + '</span>') +
+               '</div>';
+
+      case 'hero':
+        var ht = heroText(row, o, part.src);
+        var hs = (part.size || 2.2) * u * o.k;
+        return '<div class="g-hero' + cls + (part.align ? ' a-' + part.align : '') + '">' +
+               '<div class="big" data-fit data-wrap="2" style="font-size:' + mmv(hs) + '">' +
+               esc(ht || '—') + '</div>' +
+               (part.sub === false || !subPlain(row) ? '' :
+                 '<div class="g-sub" style="font-size:' + mmv((part.subSize || 0.72) * u * o.k) + '">' +
+                 subOf(row) + '</div>') +
+               '</div>';
+
+      case 'meta':
+        var bits = [];
+        for (i = 0; i < (part.list || []).length; i++) {
+          v = fieldVal(part.list[i], row, o);
+          if (v) bits.push('<span>' + esc(v) + '</span>');
+        }
+        return '<div class="g-meta' + cls + '" style="font-size:' + mmv((part.size || 0.5) * u * o.k) +
+               ';gap:' + mmv(0.5 * u) + '">' + bits.join('') + '</div>';
+
+      case 'rows':
+        h = [];
+        for (i = 0; i < (part.list || []).length; i++) {
+          k = part.list[i];
+          v = fieldVal(k, row, o);
+          h.push('<div class="g-row"><b style="font-size:' + mmv((part.labSize || 0.4) * u * o.k) +
+                 ';width:' + mmv((part.labW || 2.6) * u) + '">' + esc(fieldLab(k, part)) + '</b>' +
+                 '<span style="font-size:' + mmv((part.size || 0.82) * u * o.k) + '">' +
+                 (v ? esc(v) : '—') + '</span></div>');
+        }
+        return '<div class="g-rows' + cls + '">' + h.join('') + '</div>';
+
+      case 'write':
+        v = part.blank ? '' : fieldVal(part.key || 'lokasi', row, o);
+        return '<div class="g-write' + cls + '">' +
+               '<b style="font-size:' + mmv((part.labSize || 0.44) * u * o.k) + '">' +
+               esc(part.label || fieldLab(part.key || 'lokasi', part)) + '</b>' +
+               '<span style="font-size:' + mmv((part.size || 0.95) * u * o.k) + '">' +
+               (v ? esc(v) : '&nbsp;') + '</span></div>';
+
+      case 'big2':
+        v = fieldVal(part.key || 'tanggal', row, o) || '—';
+        return '<div class="g-big2' + cls + '">' +
+               '<b style="font-size:' + mmv((part.labSize || 0.45) * u * o.k) + '">' +
+               esc(part.label || fieldLab(part.key || 'tanggal', part)) + '</b>' +
+               '<div class="big" data-fit style="font-size:' +
+               mmv(fit(v, o.cw - 2.4 * u, (part.size || 1.5) * u, 0.5) * o.k) + '">' + esc(v) + '</div></div>';
+
+      case 'route':
+        var from = String(row.supplier || '—').trim();
+        var to = lokasiOf(row, o);
+        return '<div class="g-route' + cls + '">' +
+               '<div class="rt"><b style="font-size:' + mmv(0.35 * u * o.k) + '">Dari</b>' +
+               '<span data-fit style="font-size:' + mmv(fit(from, o.cw - 3 * u, (part.size || 1.1) * u, 0.5) * o.k) +
+               '">' + esc(from) + '</span></div>' +
+               '<div class="ar" style="font-size:' + mmv(0.45 * u) + '">&#9660;</div>' +
+               '<div class="rt to"><b style="font-size:' + mmv(0.35 * u * o.k) + '">Ke lokasi</b>' +
+               '<span class="wl" data-fit style="font-size:' +
+               mmv(fit(to || 'XX-XX-XXX', o.cw - 3 * u, (part.size || 1.1) * u, 0.5) * o.k) + '">' +
+               (to ? esc(to) : '&nbsp;') + '</span></div></div>';
+
+      case 'codes':
+        var useQ = part.qr !== false && o.qr && qrOK;
+        var useB = part.bc === true && o.barcode && bcOK;
+        if (!useQ && !useB) return '<div class="g-codes' + cls + '"></div>';
+        return '<div class="g-codes' + cls + (useQ && !useB ? ' q-only' : '') +
+               '" style="gap:' + mmv(0.5 * u) + '">' +
+               (useQ ? qrSvg(qrText(row, o.qrPattern)) : '') +
+               (useB ? '<div class="bcwrap"><svg class="bc" data-bc="' + esc(bcText(row)) + '"></svg>' +
+                       '<div class="bctxt" style="font-size:' + mmv(0.4 * u * o.k) + '">' +
+                       esc(bcText(row)) + '</div></div>' : '') +
+               '</div>';
+
+      case 'qrbig':
+        if (!o.qr || !qrOK) return '<div class="g-qrbig' + cls + '"></div>';
+        return '<div class="g-qrbig' + cls + '">' + qrSvg(qrText(row, o.qrPattern)) + '</div>';
+
+      case 'bc':
+        if (!o.barcode || !bcOK) return '<div class="g-bc' + cls + '"></div>';
+        return '<div class="g-bc' + cls + '">' +
+               '<svg class="bc" data-bc="' + esc(bcText(row)) + '"></svg>' +
+               (part.text === false ? '' : '<div class="bctxt" style="font-size:' +
+                 mmv(0.4 * u * o.k) + '">' + esc(bcText(row)) + '</div>') + '</div>';
+
+      case 'chips':
+        var one = part.only;
+        var zc = '<div class="chip" style="font-size:' + mmv((part.size || 0.85) * u * o.k) +
+                 ';border-radius:' + mmv(0.12 * u) + '">' + esc(row.zona || '—') + '</div>';
+        var sc = '<div class="chip s" style="font-size:' + mmv((part.size || 0.85) * u * o.k) +
+                 ';border-radius:' + mmv(0.12 * u) + '">' + esc(row.status || '—') + '</div>';
+        return '<div class="g-chips' + cls + (part.dir === 'col' ? ' col' : '') +
+               '" style="gap:' + mmv(0.25 * u) + '">' +
+               (one === 'status' ? sc : one === 'zona' ? zc : zc + sc) + '</div>';
+
+      case 'boxes':
+        h = [];
+        var bsz = mmv((part.size || 0.5) * u * 1.35);
+        for (i = 0; i < (part.items || []).length; i++) {
+          h.push('<div class="g-box"><i style="width:' + bsz + ';height:' + bsz +
+                 '"></i><span>' + esc(part.items[i]) + '</span></div>');
+        }
+        return '<div class="g-boxes' + cls + '" style="font-size:' + mmv((part.size || 0.5) * u * o.k) +
+               ';gap:' + mmv(0.4 * u) + '">' + h.join('') + '</div>';
+
+      case 'marks':
+        h = [];
+        var mn = (part.items || []).length || 1;
+        var mgap = 0.6 * u;
+        var mavail = o.cw - 2 * (o.padU || 0.5) * u - (mn - 1) * mgap;
+        var msz = Math.max(2, Math.min((part.h === 'fill' ? 4 : part.h) * u, mavail / mn));
+        for (i = 0; i < mn; i++) h.push(markSvg(part.items[i], msz));
+        return '<div class="g-marks' + cls + '" style="gap:' + mmv(mgap) + '">' + h.join('') + '</div>';
+
+      case 'note':
+        return '<div class="g-note' + cls + '" data-fit style="font-size:' +
+               mmv((part.size || 0.6) * u * o.k) + ';padding:0 ' + mmv(0.3 * u) + '">' +
+               esc(part.text || '') + '</div>';
+
+      case 'sign':
+        var kolom = part.list || ['tanggal', 'pic'];
+        h = [];
+        for (i = 0; i < kolom.length; i++) {
+          v = kolom[i] === 'tanggal' ? tglOf(row) : kolom[i] === 'pic' ? picOf(row)
+                                                  : fieldVal(kolom[i], row, o);
+          if (part.blank) v = '';
+          h.push('<div class="sg"><b style="font-size:' + mmv((part.labSize || 0.32) * u * o.k) + '">' +
+                 esc(fieldLab(kolom[i], part)) + '</b>' +
+                 '<span style="font-size:' + mmv((part.size || 0.6) * u * o.k) + '">' +
+                 (v ? esc(v) : '&nbsp;') + '</span></div>');
+        }
+        return '<div class="g-sign' + cls + (kolom.length > 2 ? ' tiga' : '') +
+               '" style="gap:' + mmv(0.8 * u) + '">' + h.join('') + '</div>';
+
+      case 'foot':
+        var L = part.left === undefined ? fieldVal('tanggal', row, o) : fieldVal(part.left, row, o);
+        var R = part.right === undefined ? fieldVal('pic', row, o) : fieldVal(part.right, row, o);
+        if (!o.meta && part.left === undefined) L = '';
+        return '<div class="g-foot' + cls + '" style="font-size:' + mmv((part.size || 0.42) * u * o.k) + '">' +
+               '<span>' + esc(L) + '</span><span>' + esc(R) + '</span></div>';
+    }
+    return '';
+  }
+
+  /* ---- daftar bagian -> fungsi render ---- */
+  function makeStack(def) {
+    return function (row, o) {
+      /* Label tiang dirotasi 90°: isinya disusun sebagai strip mendatar
+         biasa lalu diputar, supaya alur teks dan penyusutan huruf tetap
+         bekerja seperti label lain. */
+      var cw = def.rot ? o.ch : o.cw;
+      var ch = def.rot ? o.cw : o.ch;
+      var u = unitOf(cw, ch);
+
+      var oo = {}, kk;
+      for (kk in o) if (o.hasOwnProperty(kk)) oo[kk] = o[kk];
+      oo.cw = cw; oo.ch = ch;
+      oo.padU = def.padU === undefined ? 0.5 : def.padU;
+
+      var tracks = [], body = [], i, part;
+      for (i = 0; i < def.parts.length; i++) {
+        part = def.parts[i];
+        tracks.push(part.h === 'fill' ? 'minmax(0,1fr)' : part.h === 'auto' ? 'auto' : mmv(part.h * u));
+        body.push(partHTML(part, row, oo, u));
+      }
+
+      /* padU / gapU memakai satuan u. Namanya sengaja berbeda dari
+         'margin' dan 'gap' milik kertas, yang satuannya mm dan mengatur
+         jarak antar label — bukan jarak di dalam label. */
+      var padU = def.padU === undefined ? 0.5 : def.padU;
+      var gapU = def.gapU === undefined ? 0.3 : def.gapU;
+      var stack = '<div class="gen" style="grid-template-rows:' + tracks.join(' ') +
+                  ';padding:' + mmv(padU * u) + ';row-gap:' + mmv(gapU * u) + '">' + body.join('') + '</div>';
+
+      var band = '';
+      if (def.band && def.band !== 'none') {
+        band = '<div class="band" style="' + (def.band === 'top' ? 'height' : 'width') + ':' +
+               mmv((def.bandW || 0.45) * u) + '"></div>';
+      }
+
+      var gwCls = 'gw' + (def.band === 'top' ? ' b-top' : '');
+      var gwStyle = def.rot ? ' style="width:' + mmv(cw) + ';height:' + mmv(ch) + '"' : '';
+      /* Bingkai ikut di dalam .gw: untuk label tiang, .gw yang diputar
+         itulah kotak sebenarnya, jadi garisnya ikut berputar juga. */
+      var fr = frameHTML(def.frame, Math.min(cw, ch) * 0.16);
+      return '<div class="' + gwCls + '"' + gwStyle + '>' + fr + band + stack + '</div>';
+    };
+  }
+
+  /* Bungkus ringkas untuk mendaftarkan template berbasis mesin di atas. */
+  function stack(def) {
+    def.render = makeStack(def);
+    def.cls = 'lbl-gen' + (def.rot ? ' lbl-rot' : '') + (def.flat ? ' flat' : '') +
+              (def.round ? ' round' : '') + (def.cls ? ' ' + def.cls : '');
+    return def;
+  }
+
+  /* ==================================================================
+     DUA KELUARGA TEMPLATE
+
+     fam:'rak'  -> ditempel di bibir rak, tiang, atau papan lorong
+     fam:'dus'  -> ditempel di sisi dus
+
+     fixed:true -> ukuran fisik dikunci, tidak boleh diubah pengguna
+     ================================================================== */
+
+  var FAMILIES = [
+    { key: 'rak', nama: 'Label rak',
+      desc: 'Ditempel di bibir rak, tiang, atau lorong. Dibaca sambil berjalan.' },
+    { key: 'dus', nama: 'Label dus',
+      desc: 'Ditempel di sisi dus. Dibaca saat berdiri di depan tumpukan.' }
+  ];
+
+  /* ------------------------------ LABEL RAK ------------------------------ */
+  var RAK = [
     {
-      key: 'rak100', nama: 'Rak 100 × 25', ukuran: '100 × 25 mm',
+      key: 'rak100', fam: 'rak', nama: 'Strip 100 × 25', ukuran: '100 × 25 mm',
       cls: 'lbl-rak100', fixed: true,
-      desc: 'Strip rak 10 × 2,5 cm. Kode lokasi terbaca dari 3 meter. 20 label per lembar A4.',
+      desc: 'Strip rak baku 10 × 2,5 cm. Kode lokasi terbaca dari 3 meter. 20 label per lembar A4.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 10,
       cellW: 100, cellH: 25, margin: 4, gap: 2,
-      opts: { qr: true, barcode: false, meta: false },
+      opts: { qr: true, barcode: false, meta: false, qrPattern: '{qrPayload}' },
       mini: [2, 10], render: renderRak100
     },
+
+    stack({
+      key: 'rak100x38', fam: 'rak', nama: 'Strip 100 × 38', ukuran: '100 × 38 mm', fixed: true,
+      desc: 'Strip lebih tinggi: lokasi besar, ditambah baris SKU dan qty yang masih terbaca dari 2 meter.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 7,
+      cellW: 100, cellH: 38, margin: 4, gap: 2,
+      opts: { qr: true, barcode: false, meta: false },
+      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25, frame: 'lembut',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 5.0, sub: false },
+        { p: 'rows', h: 2.4, list: ['skuvar', 'qty'], labW: 3.3, labSize: .5, size: 1.0 },
+        { p: 'meta', h: .8, list: ['dus', 'zona', 'tgl', 'pic'], size: .6 }
+      ]
+    }),
+
+    stack({
+      key: 'rakbin50', fam: 'rak', nama: 'Kartu bin 100 × 50', ukuran: '100 × 50 mm', fixed: true,
+      desc: 'Kartu bin lengkap dengan QR besar. Untuk rak picking yang sering di-scan.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 5,
+      cellW: 100, cellH: 50, margin: 4, gap: 3,
+      opts: { qr: true, barcode: false, meta: true },
+      mini: [2, 5], band: 'left', bandW: 0.4, padU: 0.35, gapU: 0.25, frame: 'karcis',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 4.4, subSize: .8 },
+        { p: 'rows', h: 2.8, list: ['qty', 'dus'], labW: 3.3, labSize: .5, size: 1.0 },
+        { p: 'sign', h: 1.1, size: .62, labSize: .34 }
+      ]
+    }),
+
+    stack({
+      key: 'rak75', fam: 'rak', nama: 'Strip 75 × 25', ukuran: '75 × 25 mm', fixed: true,
+      desc: 'Strip pendek untuk rak sempit. Hanya lokasi dan SKU.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 10,
+      cellW: 75, cellH: 25, margin: 4, gap: 2,
+      opts: { qr: false, barcode: false, meta: false },
+      mini: [2, 10], band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2, frame: 'lembut',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 5.8, sub: false },
+        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'tgl'], size: .9 }
+      ]
+    }),
+
+    stack({
+      key: 'rakmini50', fam: 'rak', nama: 'Bin mini 50 × 25', ukuran: '50 × 25 mm', fixed: true,
+      desc: 'Label bin terkecil, 40 per lembar A4. Untuk laci dan kotak kecil.',
+      paper: 'a4', orient: 'portrait', cols: 4, rows: 10,
+      cellW: 50, cellH: 25, margin: 2, gap: 2,
+      opts: { qr: false, barcode: false, meta: false },
+      mini: [4, 10], band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2, frame: 'siku',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 5.8, sub: false },
+        { p: 'meta', h: 1.2, list: ['skuvar', 'tgl'], size: .95 }
+      ]
+    }),
+
+    stack({
+      key: 'rakstrip150', fam: 'rak', nama: 'Strip lorong 150 × 30', ukuran: '150 × 30 mm', fixed: true,
+      desc: 'Strip panjang untuk balok rak. Lokasi memanjang, terbaca dari ujung lorong.',
+      paper: 'a4', orient: 'portrait', cols: 1, rows: 9,
+      cellW: 150, cellH: 30, margin: 4, gap: 2,
+      opts: { qr: true, barcode: false, meta: false },
+      mini: [1, 9], band: 'left', bandW: 0.45, padU: 0.3, gapU: 0.2, frame: 'lembut',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 5.6, sub: false },
+        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'dus', 'tgl', 'pic'], size: .85 }
+      ]
+    }),
+
+    stack({
+      key: 'raklorong', fam: 'rak', nama: 'Papan lorong', ukuran: '1 per A4 mendatar',
+      desc: 'Satu papan per lembar. Huruf lorong sebesar mungkin, digantung di ujung gang.',
+      paper: 'a4', orient: 'landscape', cols: 1, rows: 1, margin: 8, gap: 0,
+      opts: { qr: false, barcode: false, meta: false },
+      mini: [1, 1], band: 'top', bandW: 0.35, padU: 0.4, gapU: 0.3, frame: 'siku',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 6.0, subSize: 1.0, align: 'center' },
+        { p: 'chips', h: 1.3, only: 'zona', size: 1.0 },
+        { p: 'meta', h: .8, list: ['tgl', 'pic'], size: .6 }
+      ]
+    }),
+
+    stack({
+      key: 'raktiang', fam: 'rak', nama: 'Label tiang', ukuran: '25 × 100 mm tegak', fixed: true,
+      desc: 'Dipasang di tiang rak, dibaca dari samping. Isinya diputar 90°.',
+      paper: 'a4', orient: 'portrait', cols: 7, rows: 2,
+      cellW: 25, cellH: 100, margin: 4, gap: 2,
+      opts: { qr: false, barcode: false, meta: false },
+      mini: [7, 2], rot: true, band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2, frame: 'lembut',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 5.8, sub: false },
+        { p: 'meta', h: 1.2, list: ['skuvar', 'tgl'], size: .9 }
+      ]
+    }),
+
+    stack({
+      key: 'rakfifo', fam: 'rak', nama: 'Rak FIFO', ukuran: '100 × 38 mm', fixed: true,
+      desc: 'Strip rak dengan tanggal masuk besar, supaya stok lama terlihat dan diambil duluan.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 7,
+      cellW: 100, cellH: 38, margin: 4, gap: 2,
+      opts: { qr: false, barcode: false, meta: true },
+      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25, frame: 'karcis',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 3.4, sub: false },
+        { p: 'big2', h: 3.6, key: 'masuk', label: 'Masuk', size: 2.2, labSize: .55 },
+        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'pic'], size: .62 }
+      ]
+    }),
+
+    stack({
+      key: 'rakqr', fam: 'rak', nama: 'Rak QR', ukuran: '2 × 6 per A4',
+      desc: 'QR mendominasi, kode lokasi jadi pendamping. Untuk gudang yang serba scan.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 6, margin: 6, gap: 3,
+      opts: { qr: true, barcode: false, meta: false },
+      mini: [2, 6], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.25, frame: 'siku',
+      parts: [
+        { p: 'qrbig', h: 'fill' },
+        { p: 'hero', h: 2.2, src: 'lokasi', size: 1.7, sub: false, align: 'center' },
+        { p: 'meta', h: 1.2, list: ['skuvar', 'tgl'], size: .65 }
+      ]
+    }),
+
+    stack({
+      key: 'rakbar', fam: 'rak', nama: 'Rak barcode', ukuran: '2 × 8 per A4',
+      desc: 'Barcode CODE128 memanjang penuh di bawah kode lokasi. Untuk pemindai laras.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 8, margin: 6, gap: 2,
+      opts: { qr: false, barcode: true, meta: false },
+      mini: [2, 8], band: 'left', bandW: 0.4, padU: 0.3, gapU: 0.2, frame: 'lembut',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 3.8, sub: false },
+        { p: 'bc', h: 3.6 },
+        { p: 'meta', h: 1.0, list: ['skuvar', 'qty', 'tgl'], size: .58 }
+      ]
+    }),
+
+    stack({
+      key: 'rakblok', fam: 'rak', nama: 'Rak blok warna', ukuran: '2 × 6 per A4',
+      desc: 'Seluruh label diwarnai zona. Dipakai untuk membagi gudang jadi area yang terlihat dari jauh.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 6, margin: 6, gap: 3,
+      opts: { qr: false, barcode: false, meta: false },
+      mini: [2, 6], cls: 'fill-zona', band: 'none', padU: 0.4, gapU: 0.25, frame: 'siku',
+      parts: [
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 4.6, subSize: 1.0, align: 'center' },
+        { p: 'meta', h: 1.2, list: ['zona', 'qty', 'tgl'], size: .85 }
+      ]
+    }),
+
+    stack({
+      key: 'raksusun', fam: 'rak', nama: 'Papan bin', ukuran: '1 × 4 per A4',
+      desc: 'Papan selebar kertas untuk satu bin: lokasi besar, qty, dus, dan nomor GRN.',
+      paper: 'a4', orient: 'portrait', cols: 1, rows: 4, margin: 6, gap: 3,
+      opts: { qr: true, barcode: false, meta: true },
+      mini: [1, 4], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.25, frame: 'karcis',
+      parts: [
+        { p: 'title', h: 1.0, text: 'Lokasi rak', size: .55 },
+        { p: 'hero', h: 'fill', src: 'lokasi', size: 3.6, subSize: .8 },
+        { p: 'rows', h: 3.4, list: ['qty', 'dus', 'grn'], labW: 3.3, labSize: .5, size: .9 },
+        { p: 'chips', h: .8, size: .6 },
+        { p: 'sign', h: 1.0, size: .58, labSize: .32 }
+      ]
+    }),
+
     {
-      key: 'dus250', nama: 'Dus 100 × 250', ukuran: '100 × 250 mm',
-      cls: 'lbl-dus250', fixed: true,
-      desc: 'Banner tegak 10 × 25 cm untuk sisi depan dus. 2 label per lembar A4.',
+      key: 'rakprop', fam: 'rak', nama: 'Rak proporsional', ukuran: '2 × 6 per A4',
+      cls: 'lbl-rak',
+      desc: 'Strip rak yang ukurannya ikut kertas, bukan dikunci. Berguna untuk kertas tidak baku.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 6, margin: 6, gap: 3,
+      opts: { qr: true, barcode: false, meta: false },
+      mini: [2, 6], render: renderRak
+    }
+  ];
+
+  /* ------------------------------ LABEL DUS ------------------------------ */
+  var DUS = [
+    {
+      key: 'dus200', fam: 'dus', nama: 'Banner 100 × 200', ukuran: '100 × 200 mm',
+      cls: 'lbl-dus200', fixed: true,
+      desc: 'Banner tegak 10 × 20 cm untuk sisi depan dus. Lengkap dengan TGL dan PIC. 2 label per lembar A4.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 1,
-      cellW: 100, cellH: 250, margin: 4, gap: 4,
+      cellW: 100, cellH: 200, margin: 4, gap: 4,
       opts: { qr: true, barcode: true, meta: true },
-      mini: [2, 1], render: renderDus250
+      mini: [2, 1], render: renderDus200
     },
+
+    stack({
+      key: 'dus140', fam: 'dus', nama: 'Banner 100 × 140', ukuran: '100 × 140 mm', fixed: true,
+      desc: 'Banner pendek, 4 per lembar A4. Untuk dus yang sisinya tidak setinggi 25 cm.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 2,
+      cellW: 100, cellH: 140, margin: 4, gap: 4,
+      opts: { qr: true, barcode: false, meta: true },
+      mini: [2, 2], padU: 0.35, gapU: 0.22, frame: 'lembut',
+      parts: [
+        { p: 'title', h: .7, text: 'Label Dus', size: .32 },
+        { p: 'hero', h: 'fill', size: 1.5, subSize: .45 },
+        { p: 'rule', h: .05 },
+        { p: 'rows', h: 1.45, list: ['qty', 'dus'], labW: 1.75, labSize: .26, size: .5 },
+        { p: 'write', h: 1.0, key: 'lokasi', size: .55, labSize: .26 },
+        { p: 'codes', h: 1.6 },
+        { p: 'chips', h: .5, size: .38 },
+        { p: 'sign', h: .9, size: .46, labSize: .26 }
+      ]
+    }),
+
+    stack({
+      key: 'dusA5', fam: 'dus', nama: 'Dus A5 penuh', ukuran: '1 per lembar A5',
+      desc: 'Satu label memenuhi selembar A5. Untuk dus besar atau palet.',
+      paper: 'a5', orient: 'portrait', cols: 1, rows: 1, margin: 6, gap: 0,
+      opts: { qr: true, barcode: true, meta: true },
+      mini: [1, 1], padU: 0.3, gapU: 0.2, frame: 'karcis',
+      parts: [
+        { p: 'title', h: .6, text: 'Label Dus', size: .28 },
+        { p: 'hero', h: 'fill', size: 1.8, subSize: .45 },
+        { p: 'rule', h: .04 },
+        { p: 'rows', h: 2.5, list: ['qty', 'dus', 'supplier', 'grn'], labW: 1.5, labSize: .23, size: .45 },
+        { p: 'write', h: .85, key: 'lokasi', size: .5, labSize: .23 },
+        { p: 'codes', h: 1.3, bc: true },
+        { p: 'chips', h: .5, size: .36 },
+        { p: 'sign', h: .75, size: .4, labSize: .23 }
+      ]
+    }),
+
     {
-      key: 'dus8', nama: 'Dus standar', ukuran: '2 × 4 per A4',
+      key: 'dus8', fam: 'dus', nama: 'Dus standar', ukuran: '2 × 4 per A4',
       cls: 'lbl-dus8',
       desc: 'Pengganti sheet PRINT_LABEL_8UP. Delapan label per lembar.',
-      paper: 'a4', orient: 'portrait', cols: 2, rows: 4,
-      margin: 6, gap: 4,
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 4, margin: 6, gap: 4,
       opts: { qr: true, barcode: false, meta: true },
       mini: [2, 4], render: renderDus8
     },
     {
-      key: 'dus12', nama: 'Dus ringkas', ukuran: '3 × 4 per A4',
+      key: 'dus12', fam: 'dus', nama: 'Dus ringkas', ukuran: '3 × 4 per A4',
       cls: 'lbl-dus12',
       desc: 'Dua belas label kecil per lembar untuk dus bertumpuk.',
-      paper: 'a4', orient: 'portrait', cols: 3, rows: 4,
-      margin: 6, gap: 3,
+      paper: 'a4', orient: 'portrait', cols: 3, rows: 4, margin: 6, gap: 3,
       opts: { qr: false, barcode: false, meta: true },
       mini: [3, 4], render: renderDus12
     },
     {
-      key: 'dus4', nama: 'Dus besar', ukuran: '2 × 2 per A4',
+      key: 'dus4', fam: 'dus', nama: 'Dus besar', ukuran: '2 × 2 per A4',
       cls: 'lbl-dus4',
       desc: 'Empat label besar dengan barcode CODE128.',
-      paper: 'a4', orient: 'portrait', cols: 2, rows: 2,
-      margin: 6, gap: 4,
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 2, margin: 6, gap: 4,
       opts: { qr: true, barcode: true, meta: true },
       mini: [2, 2], render: renderDus4
     },
     {
-      key: 'rak', nama: 'Rak / bin', ukuran: '2 × 6 per A4',
-      cls: 'lbl-rak',
-      desc: 'Strip rak proporsional. Ukurannya ikut kertas, bukan dikunci.',
-      paper: 'a4', orient: 'portrait', cols: 2, rows: 6,
-      margin: 6, gap: 3,
-      opts: { qr: true, barcode: false, meta: false },
-      mini: [2, 6], render: renderRak
-    },
-    {
-      key: 'mini24', nama: 'Mini', ukuran: '4 × 6 per A4',
+      key: 'dus24', fam: 'dus', nama: 'Dus mini', ukuran: '4 × 6 per A4',
       cls: 'lbl-mini',
-      desc: 'Stiker kecil untuk barang satuan atau rak dalam.',
-      paper: 'a4', orient: 'portrait', cols: 4, rows: 6,
-      margin: 6, gap: 3,
+      desc: 'Stiker kecil untuk barang satuan atau dus isi sedikit.',
+      paper: 'a4', orient: 'portrait', cols: 4, rows: 6, margin: 6, gap: 3,
       opts: { qr: false, barcode: false, meta: false },
       mini: [4, 6], render: renderMini
     },
     {
-      key: 'thermal', nama: 'Thermal', ukuran: '100 × 50 mm',
+      key: 'dusthermal', fam: 'dus', nama: 'Thermal 100 × 50', ukuran: '100 × 50 mm',
       cls: 'lbl-thermal',
       desc: 'Satu label per lembar untuk printer thermal 100 × 50 mm.',
-      paper: 't100x50', orient: 'portrait', cols: 1, rows: 1,
-      margin: 2, gap: 0,
+      paper: 't100x50', orient: 'portrait', cols: 1, rows: 1, margin: 2, gap: 0,
       opts: { qr: true, barcode: true, meta: true },
       mini: [1, 1], render: renderThermal
     },
+
+    stack({
+      key: 'dusthermal100', fam: 'dus', nama: 'Thermal 100 × 100', ukuran: '100 × 100 mm',
+      desc: 'Label thermal persegi. Muat QR, barcode, dan kolom lokasi sekaligus.',
+      paper: 't100x100', orient: 'portrait', cols: 1, rows: 1, margin: 2, gap: 0,
+      opts: { qr: true, barcode: true, meta: true },
+      mini: [1, 1], padU: 0.3, gapU: 0.22, frame: 'lembut',
+      parts: [
+        { p: 'hero', h: 'fill', size: 1.9, subSize: .5 },
+        { p: 'rows', h: 1.8, list: ['qty', 'dus'], labW: 1.8, labSize: .28, size: .55 },
+        { p: 'write', h: 1.2, key: 'lokasi', size: .6, labSize: .28 },
+        { p: 'codes', h: 1.8, bc: true },
+        { p: 'chips', h: .8, size: .5 },
+        { p: 'sign', h: .9, size: .48, labSize: .27 }
+      ]
+    }),
+
     {
-      key: 'tag', nama: 'Kartu gantung', ukuran: '2 × 2 per A4',
+      key: 'dustag', fam: 'dus', nama: 'Kartu gantung', ukuran: '2 × 2 per A4',
       cls: 'lbl-tag',
       desc: 'Kartu status dengan lubang gantung. Kata status dibaca dari jauh.',
-      paper: 'a4', orient: 'portrait', cols: 2, rows: 2,
-      margin: 8, gap: 6,
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 2, margin: 8, gap: 6,
       opts: { qr: true, barcode: false, meta: true },
       mini: [2, 2], render: renderTag
-    }
+    },
+
+    stack({
+      key: 'dusfragile', fam: 'dus', nama: 'Dus barang pecah', ukuran: '2 × 2 per A4',
+      desc: 'Tanda stensil peti — jangan dibanting, jangan terbalik, jauhkan dari air — di atas data dus.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 2, margin: 6, gap: 4,
+      opts: { qr: false, barcode: false, meta: true },
+      mini: [2, 2], padU: 0.35, gapU: 0.22, frame: 'karcis',
+      parts: [
+        { p: 'note', h: .6, text: 'Barang mudah pecah', size: .35 },
+        { p: 'marks', h: 'fill', items: ['fragile', 'up', 'dry'] },
+        { p: 'rule', h: .05 },
+        { p: 'hero', h: 1.6, size: 1.1, subSize: .38 },
+        { p: 'rows', h: 1.5, list: ['qty', 'dus'], labW: 1.7, labSize: .26, size: .5 },
+        { p: 'write', h: 1.0, key: 'lokasi', size: .55, labSize: .26 },
+        { p: 'sign', h: .85, size: .44, labSize: .25 }
+      ]
+    }),
+
+    stack({
+      key: 'dusfifo', fam: 'dus', nama: 'Dus FIFO', ukuran: '2 × 3 per A4',
+      desc: 'Tanggal masuk jadi bagian terbesar. Untuk stok yang harus keluar menurut urutan datang.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 3, margin: 6, gap: 4,
+      opts: { qr: false, barcode: false, meta: true },
+      mini: [2, 3], band: 'top', bandW: 0.4, padU: 0.35, gapU: 0.22, frame: 'siku',
+      parts: [
+        { p: 'big2', h: 'fill', key: 'masuk', label: 'Tanggal masuk', size: 2.2, labSize: .35 },
+        { p: 'rule', h: .05 },
+        { p: 'hero', h: 1.8, size: 1.2, subSize: .4 },
+        { p: 'rows', h: 1.8, list: ['qty', 'dus'], labW: 1.7, labSize: .26, size: .5 },
+        { p: 'chips', h: .8, only: 'status', size: .5 },
+        { p: 'sign', h: .85, size: .44, labSize: .25 }
+      ]
+    }),
+
+    stack({
+      key: 'dusqc', fam: 'dus', nama: 'Dus periksa QC', ukuran: '2 × 3 per A4',
+      desc: 'Ada kotak centang untuk pemeriksaan isi, segel, dan jumlah — dicentang langsung di dus.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 3, margin: 6, gap: 4,
+      opts: { qr: false, barcode: false, meta: true },
+      mini: [2, 3], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.2, frame: 'karcis',
+      parts: [
+        { p: 'title', h: .7, text: 'Periksa dus', size: .32 },
+        { p: 'hero', h: 'fill', size: 1.2, subSize: .38 },
+        { p: 'rows', h: 1.6, list: ['qty', 'dus'], labW: 1.7, labSize: .25, size: .48 },
+        { p: 'boxes', h: 1.6, items: ['Isi sesuai', 'Segel utuh', 'Jumlah cocok', 'Tidak rusak'], size: .32 },
+        { p: 'sign', h: 1.1, list: ['tgl', 'pic'], labels: { pic: 'Diperiksa' },
+          size: .5, labSize: .25, blank: true }
+      ]
+    }),
+
+    stack({
+      key: 'duskirim', fam: 'dus', nama: 'Dus rute simpan', ukuran: '2 × 2 per A4',
+      desc: 'Dari supplier menuju lokasi rak. Dipakai saat dus dipindah dari area terima ke rak.',
+      paper: 'a4', orient: 'portrait', cols: 2, rows: 2, margin: 6, gap: 4,
+      opts: { qr: true, barcode: false, meta: true },
+      mini: [2, 2], padU: 0.35, gapU: 0.22, frame: 'lembut',
+      parts: [
+        { p: 'title', h: .7, text: 'Simpan ke rak', size: .32 },
+        { p: 'route', h: 3.4, size: .75 },
+        { p: 'rows', h: 'fill', list: ['skuvar', 'qty', 'dus'], labW: 1.7, labSize: .26, size: .42 },
+        { p: 'codes', h: 1.2 },
+        { p: 'chips', h: .5, size: .38 },
+        { p: 'sign', h: .8, size: .42, labSize: .24 }
+      ]
+    })
   ];
+
+  var TEMPLATES = RAK.concat(DUS);
+
 
   function byKey(k) {
     for (var i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].key === k) return TEMPLATES[i];
     return TEMPLATES[0];
+  }
+
+  function byFamily(fam) {
+    var out = [], i;
+    for (i = 0; i < TEMPLATES.length; i++) if (TEMPLATES[i].fam === fam) out.push(TEMPLATES[i]);
+    return out;
   }
 
   /* ------------------------------------------------------------------ */
@@ -527,11 +1215,14 @@
     PAPERS: PAPERS,
     PAPER_ORDER: PAPER_ORDER,
     TEMPLATES: TEMPLATES,
+    FAMILIES: FAMILIES,
     byKey: byKey,
+    byFamily: byFamily,
     esc: esc,
     zCls: zCls,
     sCls: sCls,
     fit: fit,
+    FIELD_LABEL: function (k) { return FIELD[k] ? FIELD[k][0] : k; },
     qrSvg: qrSvg,
     qrText: qrText,
     bcText: bcText,
