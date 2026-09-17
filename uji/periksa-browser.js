@@ -504,11 +504,66 @@ function cek(nama, syarat, tambahan) {
       return page.click('[data-fam="rak"]')
         .then(function () { return page.waitForTimeout(400); })
         .then(function () { return page.inputValue('#inQRPattern'); })
-        .then(function (v) { cek('label rak memakai QR lokasi', v.indexOf('{lokasi}') === 0, v); })
+        .then(function (v) { cek('label rak memakai QR barcode + lokasi', v === '{barcode}|{lokasi}', v); })
         .then(function () { return page.click('[data-fam="dus"]'); })
         .then(function () { return page.waitForTimeout(400); })
         .then(function () { return page.inputValue('#inQRPattern'); })
         .then(function (v) { cek('label dus memakai QR barang', v.indexOf('{sku}') === 0, v); });
+    })
+
+    /* ---- label rak gudang ACC ---- */
+    .then(function () {
+      console.log('\n== Label rak: lokasi final, nama barang, barcode ==');
+      return page.click('[data-fam="rak"]')
+        .then(function () { return page.waitForTimeout(300); })
+        .then(function () { return page.click('[data-tpl="rak100"]'); })
+        .then(function () { return page.waitForTimeout(800); })
+        .then(function () {
+          return page.evaluate(function () {
+            var D = window.LG.data, T = window.LG.tpl;
+            var baris = D.sampleRows();
+            var acc = null, kosong = null, i;
+            for (i = 0; i < baris.length; i++) {
+              if (baris[i].barcode === '194644167882') acc = baris[i];
+              if (!String(baris[i].lokasi || '').trim() && !kosong) kosong = baris[i];
+            }
+            /* baris dengan prefix tersalin ke kolom lokasi final */
+            var palsu = D.blank();
+            palsu.prefix = 'A-CHR'; palsu.lokasi = 'A-CHR';
+
+            /* Label dirender langsung dari templatenya, jadi pemeriksaan
+               ini tidak bergantung pada data apa yang sedang dimuat. */
+            var tpl = T.byKey('rak100');
+            var o = { cw: 100, ch: 25, k: 1, qr: true, barcode: false, meta: false,
+                      qrPattern: '{barcode}|{lokasi}' };
+            var kotak = document.createElement('div');
+            kotak.innerHTML = tpl.render(acc, o) + tpl.render(kosong, o);
+            var teks = [kotak.textContent];
+
+            return {
+              qr: T.qrText(acc, '{barcode}|{lokasi}'),
+              lokasiFinal: D.lokasiFinal(acc),
+              prefixBukanLokasi: D.lokasiFinal(palsu),
+              kosongBelum: D.belumLokasiFinal(kosong),
+              adaLokasiBesar: /A-CHR-R01-B01-P01/.test(teks.join(' ')),
+              adaNama: /Anker Adp Fc 20W/.test(teks.join(' ')),
+              adaBarcode: /194644167882/.test(teks.join(' ')),
+              adaPeringatan: /Lokasi belum diset/i.test(teks.join(' '))
+            };
+          });
+        })
+        .then(function (r) {
+          cek('QR rak berisi barcode|lokasi final',
+              r.qr === '194644167882|A-CHR-R01-B01-P01', r.qr);
+          cek('lokasi final terbaca utuh', r.lokasiFinal === 'A-CHR-R01-B01-P01', r.lokasiFinal);
+          cek('prefix A-CHR tidak dianggap lokasi final', r.prefixBukanLokasi === '',
+              JSON.stringify(r.prefixBukanLokasi));
+          cek('baris tanpa lokasi ditandai belum final', r.kosongBelum === true);
+          cek('lokasi final jadi teks utama label', r.adaLokasiBesar === true);
+          cek('nama barang tampil di label', r.adaNama === true);
+          cek('barcode tampil di label', r.adaBarcode === true);
+          cek('label tanpa lokasi final diberi peringatan', r.adaPeringatan === true);
+        });
     })
 
     /* ---- urungkan ---- */

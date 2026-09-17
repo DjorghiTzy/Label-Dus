@@ -253,26 +253,53 @@
   min-width:0;                 /* wajib: supaya ellipsis bekerja */
   gap:0.7mm;
 }
+/* 1 — lokasi final: paling besar, dibaca lebih dulu dari 2–3 meter */
 .lbl-rak100 .r-loc{
   /* font-size diisi app.js: menyesuaikan panjang teks */
   line-height:.88;
-  max-height:15mm;
+  max-height:12mm;
 }
+
+/* Lokasi final belum diisi. Blok hitam terbalik supaya ketahuan
+   sebelum labelnya terlanjur ditempel. Prefix ditampilkan sebagai
+   keterangan, bukan sebagai alamat rak. */
+.lbl-rak100 .r-belum{
+  display:flex; align-items:center;
+  background:#000; color:#fff; border-radius:1mm;
+  padding:0 1.6mm; height:6.4mm;
+  font-family:var(--disp); font-weight:700; text-transform:uppercase;
+  font-size:calc(4.4mm * var(--k)); letter-spacing:.06em;
+  white-space:nowrap; overflow:hidden;
+}
+.lbl-rak100 .r-pre{
+  font-size:calc(2.6mm * var(--k)); font-family:var(--mono);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sheet.ink .lbl-rak100 .r-belum{
+  background:transparent; color:#000;
+  box-shadow:inset 0 0 0 0.4mm #000;
+}
+
+/* 2 — nama barang */
+.lbl-rak100 .r-nama{
+  font-size:calc(3.1mm * var(--k));
+  font-weight:600; line-height:1.05;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  min-width:0;
+}
+
+/* 3 — barcode kecil, kode golongan sebagai pelengkap */
 .lbl-rak100 .r-meta{
   display:flex; align-items:baseline; gap:2.4mm;
-  font-size:calc(2.9mm * var(--k));
+  font-size:calc(2.7mm * var(--k));
   line-height:1;
   min-width:0;
 }
 .lbl-rak100 .r-meta span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.lbl-rak100 .r-meta .sku{ font-weight:700; flex:0 1 auto; }
-.lbl-rak100 .r-meta .qty{ font-weight:700; flex:none; }
-.lbl-rak100 .r-meta .dus{ font-family:var(--mono); flex:none; }
-/* TGL dan PIC selalu di ujung kanan baris kecil, jadi letaknya sama
-   di semua template dan mata tidak perlu mencari. */
-.lbl-rak100 .r-meta .jejak{
-  font-family:var(--mono); letter-spacing:.02em; flex:none;
-  margin-left:auto; padding-left:2mm;
+.lbl-rak100 .r-meta .bcno{ font-family:var(--mono); letter-spacing:.06em; flex:0 1 auto; }
+.lbl-rak100 .r-meta .gol{
+  font-weight:700; letter-spacing:.08em; text-transform:uppercase; flex:none;
+  margin-left:auto;
 }
 
 .lbl-rak100 .r-side{

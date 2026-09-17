@@ -103,6 +103,10 @@
       if (k === 'dusText') return D.dusText(row);
       if (k === 'bigCode') return D.bigCode(row);
       if (k === 'tanggal') return D.fmtDate(row.tanggal);
+      /* {lokasi} berarti lokasi final. Kalau belum diset, bagian ini
+         kosong — QR tidak pernah berisi prefix yang menyesatkan. */
+      if (k === 'lokasi') return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '');
+      if (k === 'barcode') return String(row.barcode || '');
       return row[k] == null ? '' : String(row[k]);
     }).replace(/\|{2,}/g, '|').replace(/^\||\|$/g, '');
   }
@@ -113,7 +117,10 @@
   }
 
   function lokasiOf(row, o) {
-    return o.blankLokasi ? '' : String(row.lokasi || '').trim();
+    if (o.blankLokasi) return '';
+    /* Selalu lewat data.js: prefix (A-CHR) tidak pernah lolos sebagai
+       lokasi final, dan R/B/P tidak pernah dikarang aplikasi. */
+    return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '').trim();
   }
 
   function subOf(row) {
@@ -161,24 +168,48 @@
      1. LABEL RAK — 100 × 25 mm (ukuran pasti)
      ================================================================== */
   function renderRak100(row, o) {
-    var loc = lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
+    var lok = lokasiOf(row, o);
+    var belum = !lok;
     var useQr = o.qr && qrOK;
-    var fs = 15 * o.k;          /* ukuran puncak; app.js menyusutkan atau memecah */
 
-    var meta = [];
-    if (subPlain(row)) meta.push('<span class="sku">' + esc(subPlain(row)) + '</span>');
-    if (row.qty) meta.push('<span class="qty">' + esc(row.qty) + '</span>');
-    if (D.dusText(row)) meta.push('<span class="dus">' + esc(D.dusText(row)) + '</span>');
-    /* TGL dan PIC didorong ke ujung kanan, tempatnya sama di tiap label. */
-    if (jejak(row)) meta.push('<span class="jejak">' + esc(jejak(row)) + '</span>');
+    /* Urutan baca di lorong: lokasi dulu, baru nama barang, baru barcode.
+       Ukuran puncak; app.js menyusutkan atau memecah jadi dua baris. */
+    var fs = 11 * o.k;
+
+    var nama = String(row.sku || '').trim() || String(row.varian || '').trim();
+    var kode = String(row.barcode || '').trim();
+
+    /* Baris kecil paling bawah: barcode, lalu kode golongan kalau ada.
+       Kode golongan sengaja terakhir — informasi tambahan, bukan utama. */
+    var kecil = [];
+    if (kode) kecil.push('<span class="bcno">' + esc(kode) + '</span>');
+    if (row.kodeGol) kecil.push('<span class="gol">' + esc(row.kodeGol) + '</span>');
+    if (!kode && row.qty) kecil.push('<span class="gol">' + esc(row.qty) + '</span>');
+
+    /* Pita kiri memuat area kalau ada, kalau tidak zona. */
+    var pita = String(row.area || '').trim() || String(row.zona || '').trim();
+
+    var hero;
+    if (belum) {
+      /* Lokasi final belum diisi. Prefix (A-CHR) ditampilkan sebagai
+         keterangan, bukan sebagai alamat — label ini memang belum siap
+         tempel, dan itu harus kelihatan sebelum orang menempelnya. */
+      var pre = String(row.prefix || '').trim();
+      hero = '<div class="r-belum">Lokasi belum diset</div>' +
+             '<div class="r-pre">' + (pre ? 'Prefix ' + esc(pre) + ' &middot; isi lokasi final dulu'
+                                          : 'Isi kolom Lokasi final dulu') + '</div>';
+    } else {
+      hero = '<div class="big r-loc" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+             esc(lok) + '</div>';
+    }
 
     return '' +
       frameHTML('pita') +
-      '<div class="r-band">' + (row.zona ? '<span>' + esc(row.zona) + '</span>' : '') + '</div>' +
+      '<div class="r-band">' + (pita ? '<span>' + esc(pita) + '</span>' : '') + '</div>' +
       '<div class="r-main">' +
-        '<div class="big r-loc" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
-        esc(loc || '\u2014') + '</div>' +
-        (meta.length ? '<div class="r-meta">' + meta.join('') + '</div>' : '') +
+        hero +
+        (nama ? '<div class="r-nama">' + esc(nama) + '</div>' : '') +
+        (kecil.length ? '<div class="r-meta">' + kecil.join('') + '</div>' : '') +
       '</div>' +
       '<div class="r-side">' +
         (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
@@ -798,7 +829,7 @@
       desc: 'Strip rak baku 10 × 2,5 cm. Kode lokasi terbaca dari 3 meter. 20 label per lembar A4.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 10,
       cellW: 100, cellH: 25, margin: 4, gap: 2,
-      opts: { qr: true, barcode: false, meta: false, qrPattern: '{lokasi}|{sku}|{qty}' },
+      opts: { qr: true, barcode: false, meta: false, qrPattern: '{barcode}|{lokasi}' },
       mini: [2, 10], render: renderRak100
     },
 

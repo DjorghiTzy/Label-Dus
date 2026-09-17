@@ -771,11 +771,15 @@
      kertas, tinta, dan waktu tempel. Jadi diperiksa dulu. */
   function auditRows(list) {
     var seen = {}, out = [], i, r, id;
-    var noLok = 0, dupId = [], noCode = 0, dusSalah = 0, noQty = 0;
+    var noLok = 0, dupId = [], noCode = 0, dusSalah = 0, noQty = 0, prefixSaja = 0;
 
     for (i = 0; i < list.length; i++) {
       r = list[i];
       if (!String(r.lokasi || '').trim()) noLok++;
+      /* Prefix lokasi (A-CHR) bukan alamat rak. Baris seperti ini tidak
+         boleh ditempel sebagai label final tanpa peringatan — dan
+         aplikasi tidak pernah menambahkan R/B/P sendiri. */
+      else if (D.belumLokasiFinal && D.belumLokasiFinal(r)) prefixSaja++;
       if (!String(r.qty || '').trim()) noQty++;
       /* bigCode selalu jatuh ke Label ID sebagai pilihan terakhir, jadi
          yang diperiksa adalah ketiga kolom sumbernya — label dengan
@@ -794,7 +798,8 @@
     if (noCode) out.push({ t: 'berat', s: noCode + ' baris tanpa Kode, SKU, maupun Kode dus — angka besar di labelnya cuma berisi Label ID.' });
     if (dupId.length) out.push({ t: 'berat', s: dupId.length + ' Label ID kembar (' + dupId.slice(0, 3).join(', ') + (dupId.length > 3 ? ', …' : '') + '). Tekan "Nomori ulang" untuk membetulkan.' });
     if (dusSalah) out.push({ t: 'berat', s: dusSalah + ' baris punya Dus ke lebih besar dari Total dus.' });
-    if (noLok) out.push({ t: 'ringan', s: noLok + ' baris tanpa lokasi — kolomnya tercetak kosong untuk ditulis tangan.' });
+    if (noLok) out.push({ t: 'berat', s: noLok + ' baris belum punya Lokasi final — labelnya dicetak bertanda "Lokasi belum diset". Isi kolom Lokasi final dulu; prefix seperti A-CHR tidak dipakai sebagai alamat rak.' });
+    if (prefixSaja) out.push({ t: 'berat', s: prefixSaja + ' baris memakai prefix lokasi sebagai Lokasi final. Prefix hanya menunjukkan area dan golongan, belum rak/baris/posisi.' });
     if (noQty) out.push({ t: 'ringan', s: noQty + ' baris tanpa qty per dus.' });
     return out;
   }

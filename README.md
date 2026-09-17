@@ -101,8 +101,15 @@ kalau ada yang salah, lalu tekan **Masukkan data**.
 
 Yang ditangani otomatis:
 
-- Sheet dipilih sendiri (yang namanya mengandung "DATA"; sheet
-  `PRINT`, `SETUP`, `CETAK`, `README` dilewati).
+- Sheet dipilih sendiri berdasarkan **isinya**, bukan namanya: yang
+  dihitung adalah berapa judul kolom yang dikenali dan berapa baris
+  datanya. Sheet pendamping (`Data Issues`, `Summary Golongan`,
+  `Kode & Aturan`) dan sheet petunjuk (`PRINT`, `SETUP`, `README`)
+  tidak pernah menang selama ada sheet SKU yang strukturnya sehat.
+  Pada workbook master gudang ACC, yang terpilih `Draft Pengelompokan`.
+- `Prefix Lokasi` (`A-CHR`) masuk ke kolomnya sendiri, bukan ke
+  **Lokasi final**. Prefix cuma menunjukkan area dan golongan — rak,
+  baris, dan posisi (`R01-B01-P01`) tidak pernah ditebak aplikasi.
 - Baris judul hiasan di atas header dilewati sendiri.
 - Tanggal Excel berupa angka (`46126`) dibaca jadi `14-04-2026`.
   Format `14/04/2026` dan `14-04-2026` juga diterima.
@@ -200,7 +207,7 @@ dibuat sebesar mungkin karena dibaca sambil berjalan.
 
 | Template | Ukuran | Per lembar | Dipakai untuk |
 |---|---|---|---|
-| **Strip 100 × 25** | 100 × 25 mm | 20 | Strip rak baku. Terbaca dari 3 meter |
+| **Strip 100 × 25** | 100 × 25 mm | 20 | Strip rak baku: lokasi final, nama barang, barcode, QR |
 | Strip 100 × 38 | 100 × 38 mm | 14 | Strip yang juga memuat SKU dan qty |
 | Kartu bin 100 × 50 | 100 × 50 mm | 10 | Rak picking yang sering di-scan |
 | Strip 75 × 25 | 75 × 25 mm | 20 | Rak sempit |
@@ -565,8 +572,13 @@ Rinciannya ada di `uji/README.md`.
 |---|---|
 | Buka `index.html` tanpa internet, semua fitur jalan | lolos — 0 permintaan jaringan |
 | Impor `contoh/Format_Label_Dus.xlsx` | 60 baris; `46126` → `14-04-2026`; `SKU/Kode` → Kode; `Nama Barang` → SKU |
-| Bolak-balik ekspor → impor | 17/17 kolom kembali, tiap sel sama persis |
-| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 17/17 kolom dikenali |
+| Bolak-balik ekspor → impor | 21/21 kolom kembali, tiap sel sama persis |
+| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 21/21 kolom dikenali |
+| Workbook master gudang ACC | `Draft Pengelompokan` terpilih, bukan `Data Issues` |
+| `Barcode`, `Area Draft`, `Kode Golongan`, `Golongan Draft` dikenali sendiri | lolos |
+| `Prefix Lokasi` tidak pernah jadi lokasi final | lolos |
+| QR label rak berisi `194644167882\|A-CHR-R01-B01-P01` | lolos |
+| Baris tanpa lokasi final ditandai "Lokasi belum diset" | lolos |
 | Cetak PDF Strip rak 100 × 25 | label terukur **100 × 25 mm**, 20 per lembar A4, 60 label = 3 lembar |
 | Cetak PDF Banner dus 100 × 200 | label terukur **100 × 200 mm**, 2 per lembar A4, 60 label = 30 lembar |
 | Halaman kosong di akhir | tidak ada |

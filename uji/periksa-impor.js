@@ -118,5 +118,73 @@ for (var bi = 0; bi < asal.length; bi++) {
 }
 cek('isi tiap sel sama persis setelah bolak-balik', beda.length === 0, beda.join(' | '));
 
+/* =====================================================================
+   WORKBOOK MASTER GUDANG ACC
+
+   Workbook aslinya punya empat sheet, dan tiga di antaranya rapi:
+   "Data Issues" bahkan berbaris ribuan. Yang dicari tetap sheet SKU
+   utama, "Draft Pengelompokan". Sekaligus diperiksa bahwa Prefix Lokasi
+   tidak pernah berubah jadi lokasi final.
+   ===================================================================== */
+console.log('\nWorkbook master gudang ACC:');
+
+var XL = ctx.XLSX || win.XLSX;
+var wbAcc = XL.utils.book_new();
+
+var master = [['Barcode', 'Name', 'Quantity On Hand', 'Unit', 'Kategori Sumber',
+               'Area Draft', 'Kode Golongan', 'Golongan Draft', 'Prefix Lokasi',
+               'Status Stok', 'Confidence', 'Catatan Klasifikasi', 'Lokasi Final']];
+for (var ai = 0; ai < 40; ai++) {
+  master.push(['194644167882', 'Anker Adp Fc 20W 2Port Usb/C A2348 White', 12, 'PCS', 'ACC',
+               'A', 'CHR', 'Charger', 'A-CHR', 'READY', 0.92, 'otomatis',
+               ai < 20 ? 'A-CHR-R01-B01-P0' + (ai % 9 + 1) : '']);
+}
+XL.utils.book_append_sheet(wbAcc, XL.utils.aoa_to_sheet(master), 'Draft Pengelompokan');
+
+var ringkas = [['Kode Golongan', 'Golongan', 'Jumlah SKU']];
+for (ai = 0; ai < 12; ai++) ringkas.push(['CHR', 'Charger', 10]);
+XL.utils.book_append_sheet(wbAcc, XL.utils.aoa_to_sheet(ringkas), 'Summary Golongan');
+
+/* sengaja dibuat paling panjang: dulu sheet ini yang menang */
+var isu = [['Barcode', 'Name', 'Issue', 'Catatan']];
+for (ai = 0; ai < 400; ai++) isu.push(['194644167882', 'Anker', 'duplikat', 'cek manual']);
+XL.utils.book_append_sheet(wbAcc, XL.utils.aoa_to_sheet(isu), 'Data Issues');
+
+var aturan = [['Kode', 'Aturan', 'Contoh']];
+for (ai = 0; ai < 20; ai++) aturan.push(['CHR', 'charger dan adaptor', 'A-CHR']);
+XL.utils.book_append_sheet(wbAcc, XL.utils.aoa_to_sheet(aturan), 'Kode & Aturan');
+
+var bufAcc = XL.write(wbAcc, { type: 'array', bookType: 'xlsx' });
+var resAcc = D.readWorkbook(bufAcc.buffer || bufAcc);
+cek('sheet SKU utama yang dipilih, bukan "Data Issues"',
+    resAcc.sheet === 'Draft Pengelompokan', resAcc.sheet);
+
+var tAcc = D.matrixToTable(resAcc.matrix);
+var mAcc = D.guessMapping(tAcc.headers);
+var kolomAcc = {};
+tAcc.headers.forEach(function (h, j) { if (mAcc[j]) kolomAcc[h] = mAcc[j]; });
+
+cek('kolom "Barcode" dikenali', kolomAcc.Barcode === 'barcode', kolomAcc.Barcode);
+cek('kolom "Name" masuk ke nama barang', kolomAcc.Name === 'sku', kolomAcc.Name);
+cek('kolom "Area Draft" tidak jadi Zona', kolomAcc['Area Draft'] === 'area', kolomAcc['Area Draft']);
+cek('kolom "Kode Golongan" tidak jadi Kode', kolomAcc['Kode Golongan'] === 'kodeGol', kolomAcc['Kode Golongan']);
+cek('kolom "Golongan Draft" dikenali', kolomAcc['Golongan Draft'] === 'golongan', kolomAcc['Golongan Draft']);
+cek('kolom "Prefix Lokasi" tidak jadi Lokasi final', kolomAcc['Prefix Lokasi'] === 'prefix', kolomAcc['Prefix Lokasi']);
+cek('kolom "Lokasi Final" dikenali', kolomAcc['Lokasi Final'] === 'lokasi', kolomAcc['Lokasi Final']);
+
+var barisAcc = D.applyMapping(tAcc, mAcc);
+cek('semua 40 baris terbaca', barisAcc.length === 40, barisAcc.length + ' baris');
+cek('lokasi final terbaca utuh', barisAcc[0].lokasi === 'A-CHR-R01-B01-P01', barisAcc[0].lokasi);
+cek('prefix tersimpan terpisah', barisAcc[0].prefix === 'A-CHR', barisAcc[0].prefix);
+
+var tanpaLokasi = barisAcc.filter(function (r) { return D.belumLokasiFinal(r); });
+cek('20 baris tanpa lokasi final ditandai', tanpaLokasi.length === 20, tanpaLokasi.length + ' baris');
+cek('prefix tidak pernah jadi lokasi final',
+    tanpaLokasi.every(function (r) { return !String(r.lokasi || '').trim(); }));
+
+var palsu = D.blank(); palsu.prefix = 'A-CHR'; palsu.lokasi = 'A-CHR';
+cek('prefix yang tersalin ke kolom lokasi tetap ditolak',
+    D.lokasiFinal(palsu) === '' && D.belumLokasiFinal(palsu) === true);
+
 console.log('\ngagal: ' + gagal);
 process.exit(gagal ? 1 : 0);
