@@ -5,6 +5,22 @@
 
 *,*::before,*::after{ box-sizing:border-box; }
 
+/* =====================================================================
+   GERAK
+
+   Satu lengkung dan tiga durasi untuk seluruh aplikasi, supaya semua
+   perpindahan terasa berasal dari tempat yang sama. Lengkungnya sedikit
+   melewati tujuan di awal lalu mengendap — inilah yang membuat penanda
+   CV/OL terasa meluncur, bukan sekadar berpindah.
+   ===================================================================== */
+:root{
+  --ease: cubic-bezier(.22,.68,.28,1);
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --t-cepat: .13s;      /* sentuhan: hover, tekan */
+  --t: .22s;            /* kebanyakan hal */
+  --t-geser: .32s;      /* yang benar-benar berpindah tempat */
+}
+
 html,body{ height:100%; }
 body{
   margin:0;
@@ -23,7 +39,11 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 }
 
 @media (prefers-reduced-motion: reduce){
-  *,*::before,*::after{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
   /* visibility tetap harus berpindah seketika, bukan tertunda */
   .view{ transition:visibility 0s !important; }
 }
@@ -68,21 +88,26 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 /* Penanda yang meluncur. Tabnya sendiri tidak lagi berlatar, jadi yang
    terlihat bergerak adalah satu keping yang berpindah — bukan dua latar
    yang berkedip bergantian. */
-.tab-ind{
-  position:absolute; top:3px; bottom:3px; left:0;
+.tab-ind,.db-ind,.fam-ind{
+  position:absolute; left:0;
   border-radius:var(--r-xs);
+  transform:translateX(var(--x,0)); width:var(--w,0);
+  transition:transform var(--t-geser) var(--ease), width var(--t-geser) var(--ease);
+  pointer-events:none;
+}
+.tab-ind{
+  top:3px; bottom:3px;
   background:var(--dock-2);
   box-shadow:var(--shadow-1);
-  transform:translateX(var(--x,0)); width:var(--w,0);
-  transition:transform .32s cubic-bezier(.22,.68,.28,1), width .32s cubic-bezier(.22,.68,.28,1);
-  pointer-events:none;
 }
 .tab{
   border:0; background:transparent; color:var(--ink-2);
   padding:7px 14px; border-radius:var(--r-xs); cursor:pointer;
   font-weight:600; font-size:var(--fs); white-space:nowrap;
+  transition:color var(--t) var(--ease);
 }
 .tab:hover{ color:var(--ink); }
+.tab:active{ transform:scale(.97); transition:transform var(--t-cepat) var(--ease); }
 .tab{ position:relative; z-index:1; }
 .tab.is-on{ color:var(--ink); }
 
@@ -98,20 +123,18 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   background:var(--dock-3); border-radius:var(--r-s);
 }
 .db-ind{
-  position:absolute; top:2px; bottom:2px; left:0;
-  border-radius:var(--r-xs);
+  top:2px; bottom:2px;
   background:var(--steel);
   box-shadow:var(--shadow-1);
-  transform:translateX(var(--x,0)); width:var(--w,0);
-  transition:transform .3s cubic-bezier(.22,.68,.28,1), width .3s cubic-bezier(.22,.68,.28,1);
-  pointer-events:none;
 }
 .dbbtn{
   border:0; background:transparent; color:var(--ink-2);
   padding:5px 13px; border-radius:var(--r-xs); cursor:pointer;
   font-weight:800; font-size:var(--fs-sm); letter-spacing:.5px;
+  transition:color var(--t) var(--ease);
 }
 .dbbtn:hover{ color:var(--ink); }
+.dbbtn:active{ transform:scale(.95); transition:transform var(--t-cepat) var(--ease); }
 .dbbtn{ position:relative; z-index:1; }
 .dbbtn.is-on{ color:var(--steel-ink); }
 
@@ -136,7 +159,16 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .kattable .kosong{ padding:var(--s5); text-align:center; color:var(--ink-3); }
 
 .topright{ margin-left:auto; display:flex; align-items:center; gap:var(--s2); }
-.savenote{ color:var(--ink-3); font-size:var(--fs-xs); white-space:nowrap; }
+.savenote{
+  color:var(--ink-3); font-size:var(--fs-xs); white-space:nowrap;
+  transition:color var(--t) var(--ease);
+}
+/* dipasang app.js sebentar setiap kali data tersimpan */
+.savenote.baru{ animation:simpan-kedip .7s var(--ease); }
+@keyframes simpan-kedip{
+  0%{ color:var(--hi); transform:translateY(-2px) }
+  40%{ color:var(--hi) }
+}
 
 .iconbtn{
   width:32px; height:32px; flex:none;
@@ -144,7 +176,12 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   border:1px solid var(--line); background:var(--dock-2); color:var(--ink-2);
   border-radius:var(--r-s); cursor:pointer; font-size:15px; line-height:1;
 }
-.iconbtn:hover{ color:var(--ink); border-color:var(--ink-3); }
+.iconbtn{
+  transition:color var(--t) var(--ease), border-color var(--t) var(--ease),
+             background var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.iconbtn:hover{ color:var(--ink); border-color:var(--ink-3); transform:translateY(-1px) rotate(-6deg); }
+.iconbtn:active{ transform:translateY(0) scale(.92) rotate(0); }
 
 .main{ min-height:0; position:relative; overflow:hidden; }
 
@@ -183,10 +220,13 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   cursor:pointer;
   font-size:var(--fs); font-weight:600;
   white-space:nowrap;
-  transition:background .12s, border-color .12s;
+  transition:background var(--t) var(--ease), border-color var(--t) var(--ease),
+             color var(--t) var(--ease), transform var(--t-cepat) var(--ease),
+             box-shadow var(--t) var(--ease);
 }
-.btn:hover{ background:var(--dock-3); }
-.btn:active{ transform:translateY(1px); }
+.btn:hover{ background:var(--dock-3); transform:translateY(-1px); box-shadow:var(--shadow-1); }
+.btn:active{ transform:translateY(1px) scale(.985); box-shadow:none; }
+.btn:disabled{ transform:none; box-shadow:none; }
 .btn:disabled{ opacity:.45; cursor:not-allowed; }
 .btn-sm{ padding:5px 9px; font-size:var(--fs-sm); }
 .btn-block{ display:block; width:100%; }
@@ -216,16 +256,34 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   border:1px solid var(--line); border-radius:var(--r-s);
   background:var(--dock-2);
 }
+.search-ico{ transition:color var(--t) var(--ease), transform var(--t) var(--ease); }
+.search:focus-within .search-ico{ color:var(--hi); transform:scale(1.15); }
+.search input,.sel,.modal textarea{
+  transition:border-color var(--t) var(--ease), background var(--t) var(--ease),
+             box-shadow var(--t) var(--ease);
+}
+.search input:focus,.sel:focus,.modal textarea:focus{
+  border-color:var(--hi); box-shadow:0 0 0 3px var(--hi-soft);
+}
 .sel{
   padding:7px 10px; border:1px solid var(--line);
   border-radius:var(--r-s); background:var(--dock-2); cursor:pointer;
 }
 .chk{ display:inline-flex; align-items:center; gap:var(--s2); cursor:pointer; user-select:none; }
-.chk input{ width:15px; height:15px; accent-color:var(--hi); flex:none; }
+.chk input{
+  width:15px; height:15px; accent-color:var(--hi); flex:none;
+  transition:transform var(--t-cepat) var(--ease);
+}
+.chk:hover input{ transform:scale(1.12); }
+.chk input:active{ transform:scale(.9); }
+.grid input[type="checkbox"]{ transition:transform var(--t-cepat) var(--ease); }
+.grid input[type="checkbox"]:hover{ transform:scale(1.15); }
+.grid input[type="checkbox"]:active{ transform:scale(.88); }
 .pill{
   padding:4px 10px; border-radius:999px;
   background:var(--dock-3); color:var(--ink-2);
   font-size:var(--fs-sm); font-weight:600; white-space:nowrap;
+  transition:background var(--t) var(--ease), color var(--t) var(--ease);
 }
 
 /* menu turun */
@@ -235,15 +293,26 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   min-width:230px; padding:var(--s1);
   background:var(--dock-2); border:1px solid var(--line);
   border-radius:var(--r-s); box-shadow:var(--shadow-2);
-  display:none;
+  /* visibility, bukan display, supaya keluar-masuknya bisa dianimasikan */
+  opacity:0; visibility:hidden;
+  transform:translateY(-6px) scale(.98);
+  transform-origin:top left;
+  transition:opacity var(--t) var(--ease), transform var(--t) var(--ease),
+             visibility 0s linear var(--t);
 }
-.menu.is-open .menu-pop{ display:block; }
+.menu.is-open .menu-pop{
+  opacity:1; visibility:visible;
+  transform:translateY(0) scale(1);
+  transition:opacity var(--t) var(--ease-out), transform var(--t) var(--ease-out), visibility 0s;
+}
 .menu-pop button{
   display:block; width:100%; text-align:left;
   padding:8px 10px; border:0; background:transparent;
   border-radius:var(--r-xs); cursor:pointer; font-size:var(--fs);
+  transition:background var(--t-cepat) var(--ease), padding-left var(--t) var(--ease);
 }
-.menu-pop button:hover{ background:var(--dock-3); }
+.menu-pop button:hover{ background:var(--dock-3); padding-left:14px; }
+.menu-pop button:active{ transform:scale(.99); }
 .menu-pop button.danger{ color:var(--danger); }
 
 /* ---- tabel data ---- */
@@ -258,13 +327,17 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   padding:8px 8px; text-align:left; white-space:nowrap;
   border-bottom:1px solid var(--line);
 }
-.grid tbody tr{ background:var(--dock-2); }
+.grid tbody tr{
+  background:var(--dock-2);
+  transition:background var(--t-cepat) var(--ease), opacity var(--t) var(--ease);
+}
 .grid tbody tr:hover{ background:var(--dock-3); }
 .grid tbody tr.is-off{ opacity:.42; }
 .grid td input{
   width:100%; border:0; background:transparent;
   padding:7px 8px; font-size:var(--fs); min-width:0;
 }
+.grid td input{ transition:background var(--t-cepat) var(--ease); }
 .grid td input:focus{ background:var(--dock); outline-offset:-2px; }
 .grid td.num input{ text-align:right; font-family:var(--mono); }
 .grid td.code input{ font-family:var(--mono); font-weight:600; }
@@ -287,6 +360,13 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .empty-inner h2{ margin:0 0 var(--s2); font-size:20px; }
 .empty-inner p{ margin:0 0 var(--s4); color:var(--ink-2); }
 .empty-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:var(--s3); text-align:left; }
+/* kartunya masuk berurutan, bukan muncul serentak */
+.empty-inner{ animation:naik-halus .34s var(--ease-out); }
+.empty-grid .card{ animation:naik-halus .4s var(--ease-out) backwards; }
+.empty-grid .card:nth-child(2){ animation-delay:.05s; }
+.empty-grid .card:nth-child(3){ animation-delay:.1s; }
+.empty-grid .card:nth-child(4){ animation-delay:.15s; }
+@keyframes naik-halus{ from{ opacity:0; transform:translateY(10px) } }
 .card{
   display:flex; flex-direction:column; gap:var(--s1);
   padding:var(--s4); cursor:pointer;
@@ -294,7 +374,16 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   border-left:4px solid var(--hi);
   border-radius:var(--r-s); box-shadow:var(--shadow-1);
 }
-.card:hover{ border-color:var(--ink-3); border-left-color:var(--hi); }
+.card{
+  transition:border-color var(--t) var(--ease), transform var(--t) var(--ease),
+             box-shadow var(--t) var(--ease), border-left-width var(--t) var(--ease);
+}
+.card:hover{
+  border-color:var(--ink-3); border-left-color:var(--hi);
+  border-left-width:7px;
+  transform:translateY(-2px); box-shadow:var(--shadow-2);
+}
+.card:active{ transform:translateY(0) scale(.99); }
 .card b{ font-size:var(--fs-md); }
 .card span{ color:var(--ink-2); font-size:var(--fs-sm); }
 .empty-hint{ margin-top:var(--s4); color:var(--ink-3); font-size:var(--fs-sm); }
@@ -371,17 +460,26 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .tpl-sticky h3{ margin-bottom:var(--s2); }
 
 .famtabs{
+  position:relative;
   display:grid; grid-template-columns:1fr 1fr; gap:3px;
   padding:3px; margin-bottom:var(--s2);
   background:var(--dock-3); border-radius:var(--r-s);
 }
+.fam-ind{
+  top:3px; bottom:3px;
+  background:var(--dock-2);
+  box-shadow:var(--shadow-1);
+}
 .famtab{
+  position:relative; z-index:1;
   border:0; background:transparent; color:var(--ink-2);
   padding:7px 8px; border-radius:var(--r-xs); cursor:pointer;
   font-weight:700; font-size:var(--fs-sm); white-space:nowrap;
+  transition:color var(--t) var(--ease);
 }
 .famtab:hover{ color:var(--ink); }
-.famtab.is-on{ background:var(--dock-2); color:var(--ink); box-shadow:var(--shadow-1); }
+.famtab:active{ transform:scale(.96); transition:transform var(--t-cepat) var(--ease); }
+.famtab.is-on{ color:var(--ink); }
 .famnote{ margin:0 0 var(--s2); color:var(--ink-3); font-size:var(--fs-xs); line-height:1.45; }
 
 /* ---- pemilih template ----
@@ -398,8 +496,19 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   padding:6px; cursor:pointer; text-align:left;
   background:var(--dock); border:1px solid var(--line); border-radius:var(--r-s);
 }
-.tpl:hover{ border-color:var(--ink-3); }
-.tpl.is-on{ border-color:var(--hi); box-shadow:inset 0 0 0 1px var(--hi); background:var(--hi-soft); }
+.tpl{
+  transition:border-color var(--t) var(--ease), background var(--t) var(--ease),
+             box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.tpl:hover{ border-color:var(--ink-3); transform:translateY(-2px); box-shadow:var(--shadow-1); }
+.tpl:active{ transform:translateY(0) scale(.98); }
+.tpl.is-on{
+  border-color:var(--hi); box-shadow:inset 0 0 0 1px var(--hi); background:var(--hi-soft);
+  animation:tpl-pilih .3s var(--ease-out);
+}
+@keyframes tpl-pilih{ 40%{ transform:scale(1.035) } }
+.tpl-mini i{ transition:background var(--t) var(--ease); }
+.tpl.is-on .tpl-mini i{ background:var(--ink-2); }
 .tpl b{ font-size:11.5px; line-height:1.15; }
 .tpl small{ font-size:9.5px; color:var(--ink-3); font-family:var(--mono); line-height:1.1; }
 .tpl.is-on small{ color:var(--ink-2); }
@@ -455,10 +564,11 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 /* ============================ MODAL ============================ */
 .backdrop{
   position:fixed; inset:0; background:rgba(6,12,18,.55); z-index:50;
-  animation:redup .16s ease;
+  animation:redup .18s ease;
 }
+.backdrop.menutup{ animation:redup .15s ease reverse forwards; }
 @keyframes redup{ from{ opacity:0 } }
-@keyframes naik{ from{ opacity:0; transform:translate(-50%,-46%) scale(.97) } }
+@keyframes naik{ from{ opacity:0; transform:translate(-50%,-44%) scale(.96) } }
 .modal{
   position:fixed; z-index:60;
   left:50%; top:50%; transform:translate(-50%,-50%);
@@ -470,7 +580,8 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   box-shadow:var(--shadow-2);
   overflow:hidden;
 }
-.modal{ animation:naik .2s cubic-bezier(.2,.7,.3,1); }
+.modal{ animation:naik .24s var(--ease-out); }
+.modal.menutup{ animation:naik .15s var(--ease) reverse forwards; }
 .modal-wide{ width:min(820px,calc(100vw - 24px)); }
 .modal-ask{ width:min(430px,calc(100vw - 24px)); }
 .modal-ask .modal-body p{ margin:0; color:var(--ink-2); line-height:1.6; }
@@ -538,12 +649,15 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   border:1px solid var(--line); border-radius:var(--r-s);
   box-shadow:var(--shadow-2);
   padding:3px;
+  animation:tip-masuk .18s var(--ease-out);
 }
+@keyframes tip-masuk{ from{ opacity:0; transform:translateY(-5px) } }
 .tip-row{
   display:flex; align-items:baseline; gap:var(--s2);
   padding:6px 8px; border-radius:var(--r-xs); cursor:pointer;
   font-size:var(--fs-sm); min-width:0;
 }
+.tip-row{ transition:background var(--t-cepat) var(--ease), box-shadow var(--t-cepat) var(--ease); }
 .tip-row:hover{ background:var(--dock-3); }
 .tip-row.is-on{ background:var(--hi-soft); box-shadow:inset 0 0 0 1px var(--hi); }
 .tip-row .bar{
@@ -575,14 +689,25 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   display:grid; place-items:center;
   background:rgba(6,12,18,.66);
   color:#fff; font-size:20px; font-weight:700;
+  animation:redup .16s ease;
 }
-.drop div{ border:3px dashed var(--hi); border-radius:var(--r); padding:40px 60px; }
+.drop div{
+  border:3px dashed var(--hi); border-radius:var(--r); padding:40px 60px;
+  animation:drop-denyut 1.4s var(--ease) infinite;
+}
+@keyframes drop-denyut{ 50%{ transform:scale(1.025) } }
 .toast{
-  position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+  position:fixed; left:50%; bottom:22px;
   z-index:80; max-width:min(520px,calc(100vw - 24px));
   padding:10px 16px; border-radius:var(--r-s);
   background:var(--steel); color:var(--steel-ink);
   box-shadow:var(--shadow-2); font-size:var(--fs); font-weight:600;
+  transform:translateX(-50%);
+  animation:toast-masuk .26s var(--ease-out);
+}
+.toast.menutup{ animation:toast-masuk .2s var(--ease) reverse forwards; }
+@keyframes toast-masuk{
+  from{ opacity:0; transform:translate(-50%,14px) scale(.96) }
 }
 
 /* ============================ RESPONSIF ============================ */

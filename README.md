@@ -131,6 +131,24 @@ hiasan, sheet `PRINT_LABEL_8UP` yang harus dilewati, tanggal berupa angka
 seri, dan puluhan baris ekor kosong. Ada juga `contoh/Format_Label_Dus.csv`
 yang sudah memakai judul kolom aplikasi ini.
 
+### Data contoh
+
+**Ekspor & cadangan ▾ → Isi dengan data contoh** memasukkan **30 baris**
+yang sengaja dibuat lengkap: barcode, nama, brand, tipe, golongan, area,
+prefix, lokasi final, rak/baris/posisi, QR payload, status mapping,
+supplier, GRN, tanggal, dan PIC.
+
+Isinya bervariasi supaya seluruh keadaan aplikasi kelihatan tanpa perlu
+menyiapkan data sendiri:
+
+- lima prefix bergaya gudang ACC (`A-CHR`, `B-CCH`, `C-CBL`, `D-PWB`,
+  `E-TGL`) dengan lokasi final lengkap
+- tiga baris **tanpa** lokasi final, untuk mencoba **Generate lokasi**
+  dan melihat tanda "Lokasi belum diset" di label
+- satu `REVIEW TIPE` dan satu `REVIEW BARCODE`
+- sembilan baris bergaya dus (kode dus, dus ke, total dus) supaya
+  template Label dus juga ada isinya
+
 ### Generate lokasi rak
 
 Data mentah biasanya cuma punya **Prefix lokasi** (`A-CHR`) — belum rak,
