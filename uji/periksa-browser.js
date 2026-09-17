@@ -18,7 +18,7 @@
    - seluruh template: isinya tidak keluar dari kotak label, DAN tidak
      terpotong di dalam bagiannya sendiri (ini tidak terlihat dari luar
      karena tiap bagian memakai overflow:hidden)
-   - dua template ukuran pasti benar-benar 100x25 mm dan 100x250 mm
+   - dua template ukuran pasti benar-benar 100x25 mm dan 100x200 mm
    - impor contoh menghasilkan 60 baris dengan tanggal yang benar
    - data bertahan setelah halaman dimuat ulang
    - layar selebar 390 px: semua tombol terjangkau
@@ -191,7 +191,7 @@ function cek(nama, syarat, tambahan) {
         })
         .then(function () { return page.click('[data-fam="dus"]'); })
         .then(function () { return page.waitForTimeout(300); })
-        .then(function () { return page.click('[data-tpl="dus250"]'); })
+        .then(function () { return page.click('[data-tpl="dus200"]'); })
         .then(function () { return page.waitForTimeout(700); })
         .then(function () {
           return page.evaluate(function () {
@@ -201,7 +201,7 @@ function cek(nama, syarat, tambahan) {
           });
         })
         .then(function (r) {
-          cek('Banner dus tepat 100 x 250 mm', r.w === 100 && r.h === 250, r.w + ' x ' + r.h + ' mm');
+          cek('Banner dus tepat 100 x 200 mm', r.w === 100 && r.h === 200, r.w + ' x ' + r.h + ' mm');
           cek('2 label per lembar A4', r.per === 2, r.per + '/lembar');
         });
     })

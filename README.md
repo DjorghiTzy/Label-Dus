@@ -222,7 +222,7 @@ dus, dan kolom lokasi untuk ditulis tangan.
 
 | Template | Ukuran | Per lembar | Dipakai untuk |
 |---|---|---|---|
-| **Banner 100 × 250** | 100 × 250 mm | 2 | Banner baku untuk sisi depan dus |
+| **Banner 100 × 200** | 100 × 200 mm | 2 | Banner baku untuk sisi depan dus |
 | Banner 100 × 140 | 100 × 140 mm | 4 | Dus yang sisinya tidak setinggi 25 cm |
 | Dus A5 penuh | 1 per lembar A5 | 1 | Dus besar atau palet |
 | Dus standar | 2 × 4 per A4 | 8 | Pengganti sheet `PRINT_LABEL_8UP` |
@@ -258,7 +258,7 @@ Di panel **Tata letak**:
 - **Muat maksimal** mengisi kolom dan baris sebanyak yang muat.
 
 Ini tidak bisa dilakukan pada template **Rak 100 × 25** dan
-**Dus 100 × 250**: ukurannya sengaja dikunci.
+**Dus 100 × 200**: ukurannya sengaja dikunci.
 
 ### Cara kedua: mengubah ukuran bawaan template (perlu buka kode)
 
@@ -568,7 +568,7 @@ Rinciannya ada di `uji/README.md`.
 | Bolak-balik ekspor → impor | 17/17 kolom kembali, tiap sel sama persis |
 | Impor `contoh/Format_Label_Dus.csv` | 20 baris, 17/17 kolom dikenali |
 | Cetak PDF Strip rak 100 × 25 | label terukur **100 × 25 mm**, 20 per lembar A4, 60 label = 3 lembar |
-| Cetak PDF Banner dus 100 × 250 | label terukur **100 × 250 mm**, 2 per lembar A4, 60 label = 30 lembar |
+| Cetak PDF Banner dus 100 × 200 | label terukur **100 × 200 mm**, 2 per lembar A4, 60 label = 30 lembar |
 | Halaman kosong di akhir | tidak ada |
 | Halaman kalibrasi | kotak terukur 100 × 100 mm, penggaris 150 mm |
 | Data bertahan setelah browser ditutup | lolos |

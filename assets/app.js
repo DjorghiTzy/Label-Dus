@@ -139,7 +139,7 @@
 
   /* Margin dipakai sebagai batas atas. Kalau barisan label lebih lebar
      dari sisa kertas, padding mengecil sendiri supaya label tetap di
-     tengah dan tidak terpotong — inilah yang membuat Dus 100 × 250 mm
+     tengah dan tidak terpotong — inilah yang membuat Dus 100 × 200 mm
      (2 × 100 + 4 = 204 mm) tetap muat pas di A4 210 mm. */
   function layout() {
     var ps = paperSize(), cs = cellSize();
@@ -1552,7 +1552,7 @@
       '<li>Ragu? Tekan <b>Cetak halaman kalibrasi printer</b> lalu ukur hasilnya dengan penggaris.</li></ul>' +
       '<h3>Dua template dengan ukuran pasti</h3>' +
       '<ul><li><b>Rak 100 × 25 mm</b> — strip untuk bibir rak, 20 label per lembar A4.</li>' +
-      '<li><b>Dus 100 × 250 mm</b> — banner untuk sisi depan dus, 2 label per lembar A4.</li></ul>' +
+      '<li><b>Dus 100 × 200 mm</b> — banner untuk sisi depan dus, 2 label per lembar A4.</li></ul>' +
       '<h3>Data Anda</h3>' +
       '<p>Semua data hanya tersimpan di browser komputer ini. Tidak ada yang dikirim ke mana pun. ' +
       'Buat cadangan <b>.json</b> secara berkala lewat menu <b>Ekspor &amp; cadangan</b>.</p>' +

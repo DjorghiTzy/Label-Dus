@@ -123,6 +123,35 @@
     return esc(sku || vr);
   }
 
+  /* ------------------------------------------------------------------
+     TGL + PIC
+     Dua kolom ini muncul di posisi yang sama pada semua template, jadi
+     siapa pun yang membaca label tahu di mana mencarinya. Kalau datanya
+     kosong, garisnya tetap dicetak supaya bisa ditulis tangan.
+     ------------------------------------------------------------------ */
+  function tglOf(row) { return D.fmtDate(row.tanggal) || ''; }
+  function picOf(row) { return String(row.pic || '').trim(); }
+
+  /* Ringkasan satu baris untuk label sempit: "12/09 · BUDI" */
+  function jejak(row) {
+    var t = tglOf(row), pc = picOf(row);
+    if (t && pc) return t + ' · ' + pc;
+    return t || pc;
+  }
+
+  /* Bingkai. Digambar sebagai lapisan, bukan border, supaya ukuran
+     fisik label tidak ikut berubah karena tebal garis. */
+  function frameHTML(kind, sikuMm) {
+    if (kind === 'nol') return '';
+    if (!kind) kind = 'lembut';
+    if (kind === 'siku') {
+      var sz = ' style="width:' + mmv(sikuMm || 5) + ';height:' + mmv(sikuMm || 5) + '"';
+      return '<div class="fr fr-siku" aria-hidden="true">' +
+             '<i' + sz + '></i><i' + sz + '></i><i' + sz + '></i><i' + sz + '></i></div>';
+    }
+    return '<div class="fr fr-' + kind + '" aria-hidden="true"></div>';
+  }
+
   function subPlain(row) {
     var sku = String(row.sku || '').trim(), vr = String(row.varian || '').trim();
     return sku && vr ? sku + ' · ' + vr : (sku || vr);
@@ -134,34 +163,35 @@
   function renderRak100(row, o) {
     var loc = lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
     var useQr = o.qr && qrOK;
-    /* lebar tersisa untuk kode lokasi: 100 − pita − sisi kanan − padding − garis */
     var fs = 15 * o.k;          /* ukuran puncak; app.js menyusutkan atau memecah */
 
     var meta = [];
     if (subPlain(row)) meta.push('<span class="sku">' + esc(subPlain(row)) + '</span>');
     if (row.qty) meta.push('<span class="qty">' + esc(row.qty) + '</span>');
     if (D.dusText(row)) meta.push('<span class="dus">' + esc(D.dusText(row)) + '</span>');
-    if (o.meta && row.tanggal) meta.push('<span class="dus">' + esc(D.fmtDate(row.tanggal)) + '</span>');
+    /* TGL dan PIC didorong ke ujung kanan, tempatnya sama di tiap label. */
+    if (jejak(row)) meta.push('<span class="jejak">' + esc(jejak(row)) + '</span>');
 
     return '' +
-      '<div class="band"></div>' +
+      frameHTML('pita') +
+      '<div class="r-band">' + (row.zona ? '<span>' + esc(row.zona) + '</span>' : '') + '</div>' +
       '<div class="r-main">' +
         '<div class="big r-loc" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
-        esc(loc || '—') + '</div>' +
+        esc(loc || '\u2014') + '</div>' +
         (meta.length ? '<div class="r-meta">' + meta.join('') + '</div>' : '') +
       '</div>' +
       '<div class="r-side">' +
         (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
-        (row.zona ? '<div class="chip">' + esc(row.zona) + '</div>' : '') +
       '</div>';
   }
 
   /* ==================================================================
-     2. LABEL DUS — 100 × 250 mm (ukuran pasti)
+     2. LABEL DUS — 100 × 200 mm (ukuran pasti)
+     Lebar 10 cm, panjang 20 cm. Dua label per lembar A4.
      ================================================================== */
-  function renderDus250(row, o) {
+  function renderDus200(row, o) {
     var code = D.bigCode(row);
-    var fs = 34 * o.k;
+    var fs = 30 * o.k;
     var loc = lokasiOf(row, o);
     var useQr = o.qr && qrOK;
     var useBc = o.barcode && bcOK;
@@ -174,47 +204,41 @@
     }
 
     var list = '';
-    list += drow('Qty / Dus', row.qty || '—');
-    list += drow('Dus', D.dusText(row) || '—');
-    if (o.meta) list += drow('Supplier', row.supplier || '—', 'sm');
-    list += drow('GRN / SJ', row.grn || '—', 'sm');
-    list += drow('Lokasi', loc, 'write');
+    list += drow('Qty / Dus', row.qty || '\u2014');
+    list += drow('Dus', D.dusText(row) || '\u2014');
+    list += drow('GRN / SJ', row.grn || '\u2014', 'sm');
+    list += drow('Supplier', row.supplier || '\u2014', 'sm');
 
-    var codes = '';
-    if (useQr || useBc) {
-      codes = '<div class="d-codes">' +
-        (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
-        (useBc ? '<div class="bcwrap">' + bcSvg(bcText(row)) +
-                 '<div class="bctxt">' + esc(bcText(row)) + '</div></div>' : '') +
-        '</div>';
-    } else {
-      codes = '<div class="d-codes"></div>';
-    }
-
-    var foot = '';
-    if (o.meta) {
-      foot = '<div class="d-foot"><span>' + esc(D.fmtDate(row.tanggal) || '—') + '</span>' +
-             '<span>' + esc(row.pic || '') + '</span></div>';
-    } else {
-      foot = '<div class="d-foot"><span>' + esc(row.pic || '') + '</span><span></span></div>';
-    }
+    var codes = '<div class="d-codes">' +
+      (useQr ? qrSvg(qrText(row, o.qrPattern)) : '') +
+      (useBc ? '<div class="bcwrap">' + bcSvg(bcText(row)) +
+               '<div class="bctxt">' + esc(bcText(row)) + '</div></div>' : '') +
+      '</div>';
 
     return '' +
+      frameHTML('lembut') +
       '<div class="tbar"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
       '<div class="d-body">' +
         '<div class="d-hero">' +
           '<div class="big" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
-          esc(code || '—') + '</div>' +
+          esc(code || '\u2014') + '</div>' +
           (subPlain(row) ? '<div class="sub">' + subOf(row) + '</div>' : '') +
         '</div>' +
         '<div class="d-rule"></div>' +
         '<div class="d-list">' + list + '</div>' +
+        '<div class="d-write"><b>Lokasi rak</b><span>' +
+          (loc ? esc(loc) : '&nbsp;') + '</span></div>' +
         codes +
         '<div class="d-chips">' +
-          '<div class="chip">' + esc(row.zona || '—') + '</div>' +
-          '<div class="chip s">' + esc(row.status || '—') + '</div>' +
+          '<div class="chip">' + esc(row.zona || '\u2014') + '</div>' +
+          '<div class="chip s">' + esc(row.status || '\u2014') + '</div>' +
         '</div>' +
-        foot +
+        '<div class="d-sign">' +
+          '<div class="sg"><b>Tgl</b><span>' + (tglOf(row) ? esc(tglOf(row)) : '&nbsp;') + '</span></div>' +
+          '<div class="sg"><b>PIC</b><span>' + (picOf(row) ? esc(picOf(row)) : '&nbsp;') + '</span></div>' +
+        '</div>' +
+        '<div class="d-foot"><span>' + esc(row.labelId || '') + '</span>' +
+          '<span>' + esc(row.catatan || '') + '</span></div>' +
       '</div>';
   }
 
@@ -234,6 +258,7 @@
     }
 
     return '' +
+      frameHTML('lembut') +
       '<div class="band"></div>' +
       '<div class="g-main">' +
         '<div class="g-top"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
@@ -252,7 +277,7 @@
         '<div class="g-foot">' +
           '<div class="chip">' + esc(row.zona || '—') + '</div>' +
           '<div class="chip s">' + esc(row.status || '—') + '</div>' +
-          (o.meta ? '<div class="when">' + esc(D.fmtDate(row.tanggal)) + '</div>' : '') +
+          (jejak(row) ? '<div class="when">' + esc(jejak(row)) + '</div>' : '') +
         '</div>' +
       '</div>';
   }
@@ -271,8 +296,9 @@
     }
 
     return '' +
+      frameHTML('siku', 4) +
       '<div class="c-top"><span>' + esc(row.labelId || '') + '</span>' +
-        '<span>' + esc(o.meta ? D.fmtDate(row.tanggal) : '') + '</span></div>' +
+        '<span>' + esc(jejak(row)) + '</span></div>' +
       '<div class="c-hero">' +
         '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
         (subPlain(row) ? '<div class="sub">' + subOf(row) + '</div>' : '') +
@@ -305,6 +331,7 @@
     }
 
     return '' +
+      frameHTML('lembut') +
       '<div class="tbar"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
       '<div class="b-body">' +
         '<div class="b-hero">' +
@@ -318,6 +345,7 @@
           r('Qty / Dus', row.qty || '—') +
           r('Dus', D.dusText(row) || '—') +
           (o.meta ? r('Supplier', row.supplier || '—') : '') +
+          r('Tgl / PIC', jejak(row) || '—') +
           r('Lokasi', loc, 'write') +
         '</div>' +
         (useBc ? '<div class="b-bc">' + bcSvg(bcText(row)) +
@@ -341,8 +369,10 @@
     if (subPlain(row)) meta.push('<span><b>' + esc(subPlain(row)) + '</b></span>');
     if (row.qty) meta.push('<span>' + esc(row.qty) + '</span>');
     if (D.dusText(row)) meta.push('<span>' + esc(D.dusText(row)) + '</span>');
+    if (jejak(row)) meta.push('<span>' + esc(jejak(row)) + '</span>');
 
     return '' +
+      frameHTML('pita') +
       '<div class="band"></div>' +
       '<div class="k-main">' +
         '<div class="big" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
@@ -363,12 +393,14 @@
     var fs = fit(code, o.cw - 5, o.ch * 0.38, 0.5) * o.k;
     var loc = lokasiOf(row, o);
     return '' +
+      frameHTML('siku', 3.5) +
       '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
       (subPlain(row) ? '<div class="m-sub">' + subOf(row) + '</div>' : '') +
       '<div class="m-row"><span>' + esc(row.qty || '') + '</span>' +
         '<span>' + esc(D.dusText(row)) + '</span></div>' +
       '<div class="m-row"><span>' + esc(loc || '·····') + '</span>' +
-        '<span>' + esc(row.zona || '') + '</span></div>';
+        '<span>' + esc(row.zona || '') + '</span></div>' +
+      (jejak(row) ? '<div class="m-row jejak"><span>' + esc(jejak(row)) + '</span></div>' : '');
   }
 
   /* ==================================================================
@@ -383,8 +415,9 @@
     var loc = lokasiOf(row, o);
 
     return '' +
+      frameHTML('lembut') +
       '<div class="t-top"><span>' + esc(row.labelId || '') + '</span>' +
-        '<span>' + esc(o.meta ? D.fmtDate(row.tanggal) : '') + '</span></div>' +
+        '<span>' + esc(jejak(row)) + '</span></div>' +
       '<div class="t-mid">' +
         '<div class="t-txt">' +
           '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
@@ -417,6 +450,7 @@
     }
 
     return '' +
+      frameHTML('karcis') +
       '<div class="hole"></div>' +
       '<div class="t-head"></div>' +
       '<div class="t-status" data-fit style="font-size:' + fsS + 'mm">' + esc(st) + '</div>' +
@@ -427,7 +461,7 @@
       '<div class="t-rows">' +
         r('Qty / Dus', row.qty || '—') +
         r('Dus', D.dusText(row) || '—') +
-        (o.meta ? r('Tanggal', D.fmtDate(row.tanggal) || '—') : '') +
+        r('Tgl / PIC', jejak(row) || '—') +
         r('Lokasi', loc, 'write') +
       '</div>' +
       '<div class="t-foot">' +
@@ -482,7 +516,8 @@
     catatan:  ['Catatan',   function (r) { return r.catatan; }],
     totalDus: ['Total dus', function (r) { return r.totalDus; }],
     lokasi:   ['Lokasi',    function (r, o) { return lokasiOf(r, o); }],
-    skuvar:   ['SKU',       function (r) { return subPlain(r); }]
+    skuvar:   ['SKU',       function (r) { return subPlain(r); }],
+    tgl:      ['Tgl',       function (r) { return D.fmtDate(r.tanggal); }]
   };
 
   function fieldVal(key, row, o) {
@@ -661,6 +696,21 @@
                mmv((part.size || 0.6) * u * o.k) + ';padding:0 ' + mmv(0.3 * u) + '">' +
                esc(part.text || '') + '</div>';
 
+      case 'sign':
+        var kolom = part.list || ['tanggal', 'pic'];
+        h = [];
+        for (i = 0; i < kolom.length; i++) {
+          v = kolom[i] === 'tanggal' ? tglOf(row) : kolom[i] === 'pic' ? picOf(row)
+                                                  : fieldVal(kolom[i], row, o);
+          if (part.blank) v = '';
+          h.push('<div class="sg"><b style="font-size:' + mmv((part.labSize || 0.32) * u * o.k) + '">' +
+                 esc(fieldLab(kolom[i], part)) + '</b>' +
+                 '<span style="font-size:' + mmv((part.size || 0.6) * u * o.k) + '">' +
+                 (v ? esc(v) : '&nbsp;') + '</span></div>');
+        }
+        return '<div class="g-sign' + cls + (kolom.length > 2 ? ' tiga' : '') +
+               '" style="gap:' + mmv(0.8 * u) + '">' + h.join('') + '</div>';
+
       case 'foot':
         var L = part.left === undefined ? fieldVal('tanggal', row, o) : fieldVal(part.left, row, o);
         var R = part.right === undefined ? fieldVal('pic', row, o) : fieldVal(part.right, row, o);
@@ -709,7 +759,10 @@
 
       var gwCls = 'gw' + (def.band === 'top' ? ' b-top' : '');
       var gwStyle = def.rot ? ' style="width:' + mmv(cw) + ';height:' + mmv(ch) + '"' : '';
-      return '<div class="' + gwCls + '"' + gwStyle + '>' + band + stack + '</div>';
+      /* Bingkai ikut di dalam .gw: untuk label tiang, .gw yang diputar
+         itulah kotak sebenarnya, jadi garisnya ikut berputar juga. */
+      var fr = frameHTML(def.frame, Math.min(cw, ch) * 0.16);
+      return '<div class="' + gwCls + '"' + gwStyle + '>' + fr + band + stack + '</div>';
     };
   }
 
@@ -755,11 +808,11 @@
       paper: 'a4', orient: 'portrait', cols: 2, rows: 7,
       cellW: 100, cellH: 38, margin: 4, gap: 2,
       opts: { qr: true, barcode: false, meta: false },
-      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25,
+      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25, frame: 'lembut',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 5.0, sub: false },
         { p: 'rows', h: 2.4, list: ['skuvar', 'qty'], labW: 3.3, labSize: .5, size: 1.0 },
-        { p: 'meta', h: .8, list: ['dus', 'zona'], size: .65 }
+        { p: 'meta', h: .8, list: ['dus', 'zona', 'tgl', 'pic'], size: .6 }
       ]
     }),
 
@@ -769,11 +822,11 @@
       paper: 'a4', orient: 'portrait', cols: 2, rows: 5,
       cellW: 100, cellH: 50, margin: 4, gap: 3,
       opts: { qr: true, barcode: false, meta: true },
-      mini: [2, 5], band: 'left', bandW: 0.4, padU: 0.35, gapU: 0.25,
+      mini: [2, 5], band: 'left', bandW: 0.4, padU: 0.35, gapU: 0.25, frame: 'karcis',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 4.4, subSize: .8 },
         { p: 'rows', h: 2.8, list: ['qty', 'dus'], labW: 3.3, labSize: .5, size: 1.0 },
-        { p: 'foot', h: .8, size: .5 }
+        { p: 'sign', h: 1.1, size: .62, labSize: .34 }
       ]
     }),
 
@@ -783,10 +836,10 @@
       paper: 'a4', orient: 'portrait', cols: 2, rows: 10,
       cellW: 75, cellH: 25, margin: 4, gap: 2,
       opts: { qr: false, barcode: false, meta: false },
-      mini: [2, 10], band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2,
+      mini: [2, 10], band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2, frame: 'lembut',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 5.8, sub: false },
-        { p: 'meta', h: 1.2, list: ['skuvar', 'qty'], size: .95 }
+        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'tgl'], size: .9 }
       ]
     }),
 
@@ -796,10 +849,10 @@
       paper: 'a4', orient: 'portrait', cols: 4, rows: 10,
       cellW: 50, cellH: 25, margin: 2, gap: 2,
       opts: { qr: false, barcode: false, meta: false },
-      mini: [4, 10], band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2,
+      mini: [4, 10], band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2, frame: 'siku',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 5.8, sub: false },
-        { p: 'meta', h: 1.2, list: ['skuvar'], size: 1.0 }
+        { p: 'meta', h: 1.2, list: ['skuvar', 'tgl'], size: .95 }
       ]
     }),
 
@@ -809,10 +862,10 @@
       paper: 'a4', orient: 'portrait', cols: 1, rows: 9,
       cellW: 150, cellH: 30, margin: 4, gap: 2,
       opts: { qr: true, barcode: false, meta: false },
-      mini: [1, 9], band: 'left', bandW: 0.45, padU: 0.3, gapU: 0.2,
+      mini: [1, 9], band: 'left', bandW: 0.45, padU: 0.3, gapU: 0.2, frame: 'lembut',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 5.6, sub: false },
-        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'dus'], size: .9 }
+        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'dus', 'tgl', 'pic'], size: .85 }
       ]
     }),
 
@@ -821,10 +874,11 @@
       desc: 'Satu papan per lembar. Huruf lorong sebesar mungkin, digantung di ujung gang.',
       paper: 'a4', orient: 'landscape', cols: 1, rows: 1, margin: 8, gap: 0,
       opts: { qr: false, barcode: false, meta: false },
-      mini: [1, 1], band: 'top', bandW: 0.35, padU: 0.4, gapU: 0.3,
+      mini: [1, 1], band: 'top', bandW: 0.35, padU: 0.4, gapU: 0.3, frame: 'siku',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 6.0, subSize: 1.0, align: 'center' },
-        { p: 'chips', h: 1.3, only: 'zona', size: 1.0 }
+        { p: 'chips', h: 1.3, only: 'zona', size: 1.0 },
+        { p: 'meta', h: .8, list: ['tgl', 'pic'], size: .6 }
       ]
     }),
 
@@ -834,10 +888,10 @@
       paper: 'a4', orient: 'portrait', cols: 7, rows: 2,
       cellW: 25, cellH: 100, margin: 4, gap: 2,
       opts: { qr: false, barcode: false, meta: false },
-      mini: [7, 2], rot: true, band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2,
+      mini: [7, 2], rot: true, band: 'left', bandW: 0.5, padU: 0.3, gapU: 0.2, frame: 'lembut',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 5.8, sub: false },
-        { p: 'meta', h: 1.2, list: ['skuvar'], size: .95 }
+        { p: 'meta', h: 1.2, list: ['skuvar', 'tgl'], size: .9 }
       ]
     }),
 
@@ -847,11 +901,11 @@
       paper: 'a4', orient: 'portrait', cols: 2, rows: 7,
       cellW: 100, cellH: 38, margin: 4, gap: 2,
       opts: { qr: false, barcode: false, meta: true },
-      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25,
+      mini: [2, 7], band: 'left', bandW: 0.5, padU: 0.35, gapU: 0.25, frame: 'karcis',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 3.4, sub: false },
         { p: 'big2', h: 3.6, key: 'masuk', label: 'Masuk', size: 2.2, labSize: .55 },
-        { p: 'meta', h: 1.2, list: ['skuvar', 'qty'], size: .65 }
+        { p: 'meta', h: 1.2, list: ['skuvar', 'qty', 'pic'], size: .62 }
       ]
     }),
 
@@ -860,11 +914,11 @@
       desc: 'QR mendominasi, kode lokasi jadi pendamping. Untuk gudang yang serba scan.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 6, margin: 6, gap: 3,
       opts: { qr: true, barcode: false, meta: false },
-      mini: [2, 6], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.25,
+      mini: [2, 6], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.25, frame: 'siku',
       parts: [
         { p: 'qrbig', h: 'fill' },
         { p: 'hero', h: 2.2, src: 'lokasi', size: 1.7, sub: false, align: 'center' },
-        { p: 'meta', h: 1.2, list: ['skuvar'], size: .7 }
+        { p: 'meta', h: 1.2, list: ['skuvar', 'tgl'], size: .65 }
       ]
     }),
 
@@ -873,11 +927,11 @@
       desc: 'Barcode CODE128 memanjang penuh di bawah kode lokasi. Untuk pemindai laras.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 8, margin: 6, gap: 2,
       opts: { qr: false, barcode: true, meta: false },
-      mini: [2, 8], band: 'left', bandW: 0.4, padU: 0.3, gapU: 0.2,
+      mini: [2, 8], band: 'left', bandW: 0.4, padU: 0.3, gapU: 0.2, frame: 'lembut',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 3.8, sub: false },
         { p: 'bc', h: 3.6 },
-        { p: 'meta', h: 1.0, list: ['skuvar', 'qty'], size: .6 }
+        { p: 'meta', h: 1.0, list: ['skuvar', 'qty', 'tgl'], size: .58 }
       ]
     }),
 
@@ -886,10 +940,10 @@
       desc: 'Seluruh label diwarnai zona. Dipakai untuk membagi gudang jadi area yang terlihat dari jauh.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 6, margin: 6, gap: 3,
       opts: { qr: false, barcode: false, meta: false },
-      mini: [2, 6], cls: 'fill-zona', band: 'none', padU: 0.4, gapU: 0.25,
+      mini: [2, 6], cls: 'fill-zona', band: 'none', padU: 0.4, gapU: 0.25, frame: 'siku',
       parts: [
         { p: 'hero', h: 'fill', src: 'lokasi', size: 4.6, subSize: 1.0, align: 'center' },
-        { p: 'meta', h: 1.2, list: ['zona', 'qty'], size: .9 }
+        { p: 'meta', h: 1.2, list: ['zona', 'qty', 'tgl'], size: .85 }
       ]
     }),
 
@@ -898,12 +952,13 @@
       desc: 'Papan selebar kertas untuk satu bin: lokasi besar, qty, dus, dan nomor GRN.',
       paper: 'a4', orient: 'portrait', cols: 1, rows: 4, margin: 6, gap: 3,
       opts: { qr: true, barcode: false, meta: true },
-      mini: [1, 4], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.25,
+      mini: [1, 4], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.25, frame: 'karcis',
       parts: [
         { p: 'title', h: 1.0, text: 'Lokasi rak', size: .55 },
         { p: 'hero', h: 'fill', src: 'lokasi', size: 3.6, subSize: .8 },
-        { p: 'rows', h: 4.0, list: ['qty', 'dus', 'grn'], labW: 3.3, labSize: .5, size: 1.0 },
-        { p: 'chips', h: .8, size: .6 }
+        { p: 'rows', h: 3.4, list: ['qty', 'dus', 'grn'], labW: 3.3, labSize: .5, size: .9 },
+        { p: 'chips', h: .8, size: .6 },
+        { p: 'sign', h: 1.0, size: .58, labSize: .32 }
       ]
     }),
 
@@ -920,13 +975,13 @@
   /* ------------------------------ LABEL DUS ------------------------------ */
   var DUS = [
     {
-      key: 'dus250', fam: 'dus', nama: 'Banner 100 × 250', ukuran: '100 × 250 mm',
-      cls: 'lbl-dus250', fixed: true,
-      desc: 'Banner tegak 10 × 25 cm untuk sisi depan dus. 2 label per lembar A4.',
+      key: 'dus200', fam: 'dus', nama: 'Banner 100 × 200', ukuran: '100 × 200 mm',
+      cls: 'lbl-dus200', fixed: true,
+      desc: 'Banner tegak 10 × 20 cm untuk sisi depan dus. Lengkap dengan TGL dan PIC. 2 label per lembar A4.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 1,
-      cellW: 100, cellH: 250, margin: 4, gap: 4,
+      cellW: 100, cellH: 200, margin: 4, gap: 4,
       opts: { qr: true, barcode: true, meta: true },
-      mini: [2, 1], render: renderDus250
+      mini: [2, 1], render: renderDus200
     },
 
     stack({
@@ -935,7 +990,7 @@
       paper: 'a4', orient: 'portrait', cols: 2, rows: 2,
       cellW: 100, cellH: 140, margin: 4, gap: 4,
       opts: { qr: true, barcode: false, meta: true },
-      mini: [2, 2], padU: 0.35, gapU: 0.22,
+      mini: [2, 2], padU: 0.35, gapU: 0.22, frame: 'lembut',
       parts: [
         { p: 'title', h: .7, text: 'Label Dus', size: .32 },
         { p: 'hero', h: 'fill', size: 1.5, subSize: .45 },
@@ -943,8 +998,8 @@
         { p: 'rows', h: 1.45, list: ['qty', 'dus'], labW: 1.75, labSize: .26, size: .5 },
         { p: 'write', h: 1.0, key: 'lokasi', size: .55, labSize: .26 },
         { p: 'codes', h: 1.6 },
-        { p: 'chips', h: .55, size: .4 },
-        { p: 'foot', h: .35, size: .22 }
+        { p: 'chips', h: .5, size: .38 },
+        { p: 'sign', h: .9, size: .46, labSize: .26 }
       ]
     }),
 
@@ -953,7 +1008,7 @@
       desc: 'Satu label memenuhi selembar A5. Untuk dus besar atau palet.',
       paper: 'a5', orient: 'portrait', cols: 1, rows: 1, margin: 6, gap: 0,
       opts: { qr: true, barcode: true, meta: true },
-      mini: [1, 1], padU: 0.3, gapU: 0.2,
+      mini: [1, 1], padU: 0.3, gapU: 0.2, frame: 'karcis',
       parts: [
         { p: 'title', h: .6, text: 'Label Dus', size: .28 },
         { p: 'hero', h: 'fill', size: 1.8, subSize: .45 },
@@ -962,7 +1017,7 @@
         { p: 'write', h: .85, key: 'lokasi', size: .5, labSize: .23 },
         { p: 'codes', h: 1.3, bc: true },
         { p: 'chips', h: .5, size: .36 },
-        { p: 'foot', h: .21, size: .18 }
+        { p: 'sign', h: .75, size: .4, labSize: .23 }
       ]
     }),
 
@@ -1012,13 +1067,14 @@
       desc: 'Label thermal persegi. Muat QR, barcode, dan kolom lokasi sekaligus.',
       paper: 't100x100', orient: 'portrait', cols: 1, rows: 1, margin: 2, gap: 0,
       opts: { qr: true, barcode: true, meta: true },
-      mini: [1, 1], padU: 0.3, gapU: 0.22,
+      mini: [1, 1], padU: 0.3, gapU: 0.22, frame: 'lembut',
       parts: [
         { p: 'hero', h: 'fill', size: 1.9, subSize: .5 },
         { p: 'rows', h: 1.8, list: ['qty', 'dus'], labW: 1.8, labSize: .28, size: .55 },
         { p: 'write', h: 1.2, key: 'lokasi', size: .6, labSize: .28 },
-        { p: 'codes', h: 2.0, bc: true },
-        { p: 'chips', h: .8, size: .5 }
+        { p: 'codes', h: 1.8, bc: true },
+        { p: 'chips', h: .8, size: .5 },
+        { p: 'sign', h: .9, size: .48, labSize: .27 }
       ]
     }),
 
@@ -1036,7 +1092,7 @@
       desc: 'Tanda stensil peti — jangan dibanting, jangan terbalik, jauhkan dari air — di atas data dus.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 2, margin: 6, gap: 4,
       opts: { qr: false, barcode: false, meta: true },
-      mini: [2, 2], padU: 0.35, gapU: 0.22,
+      mini: [2, 2], padU: 0.35, gapU: 0.22, frame: 'karcis',
       parts: [
         { p: 'note', h: .6, text: 'Barang mudah pecah', size: .35 },
         { p: 'marks', h: 'fill', items: ['fragile', 'up', 'dry'] },
@@ -1044,7 +1100,7 @@
         { p: 'hero', h: 1.6, size: 1.1, subSize: .38 },
         { p: 'rows', h: 1.5, list: ['qty', 'dus'], labW: 1.7, labSize: .26, size: .5 },
         { p: 'write', h: 1.0, key: 'lokasi', size: .55, labSize: .26 },
-        { p: 'foot', h: .3, size: .22 }
+        { p: 'sign', h: .85, size: .44, labSize: .25 }
       ]
     }),
 
@@ -1053,13 +1109,14 @@
       desc: 'Tanggal masuk jadi bagian terbesar. Untuk stok yang harus keluar menurut urutan datang.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 3, margin: 6, gap: 4,
       opts: { qr: false, barcode: false, meta: true },
-      mini: [2, 3], band: 'top', bandW: 0.4, padU: 0.35, gapU: 0.22,
+      mini: [2, 3], band: 'top', bandW: 0.4, padU: 0.35, gapU: 0.22, frame: 'siku',
       parts: [
         { p: 'big2', h: 'fill', key: 'masuk', label: 'Tanggal masuk', size: 2.2, labSize: .35 },
         { p: 'rule', h: .05 },
         { p: 'hero', h: 1.8, size: 1.2, subSize: .4 },
         { p: 'rows', h: 1.8, list: ['qty', 'dus'], labW: 1.7, labSize: .26, size: .5 },
-        { p: 'chips', h: .8, only: 'status', size: .5 }
+        { p: 'chips', h: .8, only: 'status', size: .5 },
+        { p: 'sign', h: .85, size: .44, labSize: .25 }
       ]
     }),
 
@@ -1068,14 +1125,14 @@
       desc: 'Ada kotak centang untuk pemeriksaan isi, segel, dan jumlah — dicentang langsung di dus.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 3, margin: 6, gap: 4,
       opts: { qr: false, barcode: false, meta: true },
-      mini: [2, 3], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.2,
+      mini: [2, 3], band: 'left', bandW: 0.35, padU: 0.35, gapU: 0.2, frame: 'karcis',
       parts: [
         { p: 'title', h: .7, text: 'Periksa dus', size: .32 },
         { p: 'hero', h: 'fill', size: 1.2, subSize: .38 },
         { p: 'rows', h: 1.6, list: ['qty', 'dus'], labW: 1.7, labSize: .25, size: .48 },
-        { p: 'boxes', h: 1.7, items: ['Isi sesuai', 'Segel utuh', 'Jumlah cocok', 'Tidak rusak'], size: .32 },
-        { p: 'write', h: 1.0, key: 'pic', label: 'Diperiksa oleh', size: .5, labSize: .25, blank: true },
-        { p: 'foot', h: .3, size: .22, right: 'grn' }
+        { p: 'boxes', h: 1.6, items: ['Isi sesuai', 'Segel utuh', 'Jumlah cocok', 'Tidak rusak'], size: .32 },
+        { p: 'sign', h: 1.1, list: ['tgl', 'pic'], labels: { pic: 'Diperiksa' },
+          size: .5, labSize: .25, blank: true }
       ]
     }),
 
@@ -1084,13 +1141,14 @@
       desc: 'Dari supplier menuju lokasi rak. Dipakai saat dus dipindah dari area terima ke rak.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 2, margin: 6, gap: 4,
       opts: { qr: true, barcode: false, meta: true },
-      mini: [2, 2], padU: 0.35, gapU: 0.22,
+      mini: [2, 2], padU: 0.35, gapU: 0.22, frame: 'lembut',
       parts: [
         { p: 'title', h: .7, text: 'Simpan ke rak', size: .32 },
         { p: 'route', h: 3.4, size: .75 },
-        { p: 'rows', h: 'fill', list: ['skuvar', 'qty', 'dus'], labW: 1.7, labSize: .26, size: .5 },
-        { p: 'codes', h: 1.4 },
-        { p: 'chips', h: .55, size: .4 }
+        { p: 'rows', h: 'fill', list: ['skuvar', 'qty', 'dus'], labW: 1.7, labSize: .26, size: .42 },
+        { p: 'codes', h: 1.2 },
+        { p: 'chips', h: .5, size: .38 },
+        { p: 'sign', h: .8, size: .42, labSize: .24 }
       ]
     })
   ];
