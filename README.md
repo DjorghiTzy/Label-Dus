@@ -45,7 +45,11 @@ Yang ditangani otomatis:
 - Kolom `No` dan `Text Dus (x/total)` dilewati.
 - Baris ekor yang hanya berisi zona/status/PIC dibuang.
 
-Coba dulu dengan `contoh/Format_Label_Dus.xlsx` — hasilnya 60 baris.
+Coba dulu dengan `contoh/Format_Label_Dus.xlsx` — hasilnya 60 baris. File
+itu sengaja dibuat berantakan seperti file Excel lama: ada baris judul
+hiasan, sheet `PRINT_LABEL_8UP` yang harus dilewati, tanggal berupa angka
+seri, dan puluhan baris ekor kosong. Ada juga `contoh/Format_Label_Dus.csv`
+yang sudah memakai judul kolom aplikasi ini.
 
 ### 3. Merapikan data
 
@@ -305,7 +309,8 @@ assets/
   app.js              perekat: event, tabel, pratinjau, cetak
 vendor/               pustaka lokal (lihat vendor/README.md)
 contoh/
-  Format_Label_Dus.xlsx  file contoh, 60 baris
+  Format_Label_Dus.xlsx  file contoh, 60 baris (meniru file Excel lama)
+  Format_Label_Dus.csv   file contoh format CSV, 20 baris
 uji/                  pemeriksaan untuk pengembang (lihat uji/README.md)
 arsip/
   label-dus-rak-versi-lama.html   versi lama satu-file, disimpan sebagai arsip
@@ -386,11 +391,18 @@ dicatat di sini:
    memanggil fungsi yang merender seluruh lembar hanya untuk membaca
    angkanya, lalu membuang hasilnya — untuk 1500 baris itu sekitar dua
    detik terbuang. Sekarang angkanya dihitung langsung: 4 ms.
-15. **QR disimpan sementara (cache).** Membuat QR adalah bagian termahal
+15. **"Dus ke" punya dua arti, dan itu dibedakan dari isi filenya.** Di
+   file Excel lama, kolom "Dus Ke" justru berisi kode dus (`MC01-1W`),
+   jadi aliasnya mengarah ke Kode dus. Tapi ekspor aplikasi ini punya
+   "Kode dus" dan "Dus ke" sebagai dua kolom berbeda. Aturannya sekarang:
+   kalau kedua kolom itu ada di file yang sama, "Dus ke" pasti nomor
+   urut. Tanpa ini, mengekspor lalu mengimpor kembali kehilangan satu
+   kolom — ketahuan lewat pemeriksaan bolak-balik.
+16. **QR disimpan sementara (cache).** Membuat QR adalah bagian termahal
    saat mencetak, dan satu gudang biasanya punya banyak baris dengan isi
    QR yang sama. Cache dibatasi 4000 entri supaya tidak menggerus ingatan
    browser pada data besar.
-16. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+17. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
@@ -422,7 +434,7 @@ Tiga pemeriksaan, dua di antaranya hanya butuh Node:
 
 | Perintah | Butuh | Memeriksa |
 |---|---|---|
-| `node uji/periksa-impor.js` | Node | Jalur impor Excel dari ujung ke ujung |
+| `node uji/periksa-impor.js` | Node | Jalur impor Excel + bolak-balik ekspor→impor |
 | `node uji/periksa-anggaran.js` | Node | Anggaran tinggi tiap template |
 | `node uji/periksa-browser.js` | Node + Playwright | Aplikasi sungguhan di Chromium |
 
@@ -444,6 +456,8 @@ Rinciannya ada di `uji/README.md`.
 |---|---|
 | Buka `index.html` tanpa internet, semua fitur jalan | lolos — 0 permintaan jaringan |
 | Impor `contoh/Format_Label_Dus.xlsx` | 60 baris; `46126` → `14-04-2026`; `SKU/Kode` → Kode; `Nama Barang` → SKU |
+| Bolak-balik ekspor → impor | 17/17 kolom kembali, tiap sel sama persis |
+| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 17/17 kolom dikenali |
 | Cetak PDF Strip rak 100 × 25 | label terukur **100 × 25 mm**, 20 per lembar A4, 60 label = 3 lembar |
 | Cetak PDF Banner dus 100 × 250 | label terukur **100 × 250 mm**, 2 per lembar A4, 60 label = 30 lembar |
 | Halaman kosong di akhir | tidak ada |
