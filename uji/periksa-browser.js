@@ -561,7 +561,7 @@ function cek(nama, syarat, tambahan) {
               lokasiFinal: D.lokasiFinal(acc),
               prefixBukanLokasi: D.lokasiFinal(palsu),
               kosongBelum: D.belumLokasiFinal(kosong),
-              adaLokasiBesar: /A-CHR-R01-B01-P04/.test(teks.join(' ')),
+              adaLokasiBesar: /A-CHR-R01-B01-P03/.test(teks.join(' ')),
               adaNama: /Anker Adp Fc 20W/.test(teks.join(' ')),
               adaBarcode: /194644167882/.test(teks.join(' ')),
               adaPeringatan: /Lokasi belum diset/i.test(teks.join(' ')),
@@ -576,8 +576,8 @@ function cek(nama, syarat, tambahan) {
         })
         .then(function (r) {
           cek('QR rak berisi barcode|lokasi final',
-              r.qr === '194644167882|A-CHR-R01-B01-P04', r.qr);
-          cek('lokasi final terbaca utuh', r.lokasiFinal === 'A-CHR-R01-B01-P04', r.lokasiFinal);
+              r.qr === '194644167882|A-CHR-R01-B01-P03', r.qr);
+          cek('lokasi final terbaca utuh', r.lokasiFinal === 'A-CHR-R01-B01-P03', r.lokasiFinal);
           cek('prefix A-CHR tidak dianggap lokasi final', r.prefixBukanLokasi === '',
               JSON.stringify(r.prefixBukanLokasi));
           cek('baris tanpa lokasi ditandai belum final', r.kosongBelum === true);
@@ -587,7 +587,7 @@ function cek(nama, syarat, tambahan) {
           cek('label tanpa lokasi final diberi peringatan', r.adaPeringatan === true);
           cek('tipe/model tampil di label', r.adaTipe === true);
           cek('QR memakai QR Payload dari file mapping',
-              r.qrPakaiPayload === '194644167882|A-CHR-R01-B01-P04', r.qrPakaiPayload);
+              r.qrPakaiPayload === '194644167882|A-CHR-R01-B01-P03', r.qrPakaiPayload);
           cek('baris REVIEW tetap tercetak, tidak dibuang', r.revTampil === true);
           cek('REVIEW TIPE diberi tanda ringan', r.revTandaTipe === true);
           cek('REVIEW BARCODE diberi tanda QR belum final', r.revTandaBarcode === true);
@@ -852,23 +852,32 @@ function cek(nama, syarat, tambahan) {
           adaReviewTipe: R.some(function (r) { return D.statusMapping(r) === 'tipe'; }),
           adaReviewBarcode: R.some(function (r) { return D.statusMapping(r) === 'barcode'; }),
           adaDus: R.filter(function (r) { return r.kodeDus; }).length,
+          bentukSalah: R.filter(function (r) { return !D.isLokasiFinal(r.lokasi); }).length,
+          bcKembar: (function () {
+            var h = {}, n = 0, k;
+            R.forEach(function (r) { if (r.barcode) h[r.barcode] = (h[r.barcode] || 0) + 1; });
+            for (k in h) if (h.hasOwnProperty(k) && h[k] > 1) n++;
+            return n;
+          })(),
           qrIsi: R.filter(function (r) { return r.qrPayload; }).length
         };
       });
     })
     .then(function (r) {
-      cek('data contoh berisi 30 baris', r.jumlah === 30, r.jumlah + ' baris');
-      cek('semua kolom penting terisi', r.lengkap >= 27, r.lengkap + '/30 lengkap');
+      cek('data contoh berisi 20 baris', r.jumlah === 20, r.jumlah + ' baris');
+      cek('semua kolom penting terisi', r.lengkap >= 19, r.lengkap + '/20 lengkap');
       cek('ada beberapa prefix berbeda', r.prefix >= 5, r.prefix + ' prefix');
       cek('semua baris contoh punya Lokasi final', r.tanpaLokasi === 0, r.tanpaLokasi + ' kosong');
       cek('Rak/Baris/Posisi terisi di semua baris contoh',
           r.tanpaBagian === 0, r.tanpaBagian + ' kosong');
       cek('tidak ada lokasi contoh yang kembar', r.kembar === 0, r.kembar + ' kembar');
-      cek('setiap lokasi diawali prefiksnya sendiri', r.prefixCocok === 30, r.prefixCocok + '/30');
+      cek('setiap lokasi diawali prefiksnya sendiri', r.prefixCocok === 20, r.prefixCocok + '/20');
+      cek('bentuk lokasinya benar semua', r.bentukSalah === 0, r.bentukSalah + ' salah');
+      cek('tidak ada barcode kembar', r.bcKembar === 0, r.bcKembar + ' kembar');
       cek('ada contoh REVIEW TIPE dan REVIEW BARCODE',
           r.adaReviewTipe && r.adaReviewBarcode);
-      cek('ada baris bergaya dus untuk template Label dus', r.adaDus >= 8, r.adaDus + ' baris');
-      cek('QR Payload sudah terisi untuk yang punya lokasi', r.qrIsi >= 24, r.qrIsi + ' baris');
+      cek('ada baris bergaya dus untuk template Label dus', r.adaDus === 5, r.adaDus + ' baris');
+      cek('QR Payload terisi untuk semua yang punya barcode', r.qrIsi === 19, r.qrIsi + ' baris');
     })
 
     /* ---- impor yang barisnya belum punya lokasi final ----

@@ -973,26 +973,22 @@
   }
 
   /* ------------------------------------------------------------------
-     DATA CONTOH
-     ------------------------------------------------------------------ */
-  /* ------------------------------------------------------------------
-     DATA CONTOH — 30 baris
+     DATA CONTOH — 20 baris
 
-     Ditulis sebagai objek, bukan larik posisi, supaya masih terbaca
-     sekarang kolomnya ada dua puluh delapan. Kolom yang sama untuk semua
-     baris (tanggal, supplier, GRN, PIC) diisi sampleRows().
+     Barangnya karangan, tapi bentuk datanya persis seperti data asli
+     gudang ACC. Ditulis sebagai objek, bukan larik posisi, supaya masih
+     terbaca sekarang kolomnya ada dua puluh delapan. Kolom yang sama
+     untuk semua baris (tanggal, supplier, GRN, PIC) diisi sampleRows().
 
-     SETIAP baris punya Lokasi final. Data contoh memang untuk langsung
-     dicetak, jadi tidak ada satu pun yang keluar bertanda "Lokasi belum
-     diset" — keadaan itu sudah punya tempatnya sendiri, yaitu data asli
-     yang prefiksnya belum ditindaklanjuti.
+     SETIAP baris punya Lokasi final lengkap sampai posisi, jadi data
+     contoh bisa langsung dicetak tanpa satu pun label keluar bertanda
+     "Lokasi belum diset".
 
      Isinya sengaja bervariasi supaya seluruh keadaan aplikasi kelihatan
      tanpa perlu menyiapkan data sendiri:
-       - lima prefix bergaya gudang ACC (A-CHR .. E-TGL) dengan lokasi
-         final lengkap sampai posisi
+       - lima prefix bergaya gudang ACC (A-CHR .. E-TGL)
        - satu REVIEW TIPE dan satu REVIEW BARCODE
-       - sembilan baris bergaya dus (kode dus, dus ke, total dus) supaya
+       - lima baris bergaya dus (kode dus, dus ke, total dus) supaya
          template Label dus juga ada isinya
      ------------------------------------------------------------------ */
   var SAMPLE = [
@@ -1005,27 +1001,19 @@
       brand: 'Anker', tipe: 'A2347', golongan: 'Charger', area: 'A', kodeGol: 'CHR',
       prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P02', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    { barcode: '194644167899', sku: 'Anker Adp Fc 20W Usb-C A2347 White',
-      brand: 'Anker', tipe: 'A2347', golongan: 'Charger', area: 'A', kodeGol: 'CHR',
-      prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P03', qty: '1 PCS',
-      zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { barcode: '194644167882', sku: 'Anker Adp Fc 20W 2Port Usb/C A2348 White',
       brand: 'Anker', tipe: 'A2348', golongan: 'Charger', area: 'A', kodeGol: 'CHR',
-      prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P04', qty: '1 PCS',
+      prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P03', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { barcode: '6932172601157', sku: 'Baseus Adp GaN5 Pro 30W CCGN Black',
       brand: 'Baseus', tipe: 'CCGN070102', golongan: 'Charger', area: 'A', kodeGol: 'CHR',
-      prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P05', qty: '1 PCS',
+      prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P04', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     /* tipe masih perlu dicek — labelnya tetap tercetak, cuma ditandai */
     { barcode: '6953156287594', sku: 'Baseus Adp Compact Quick Charger 20W CCXJ',
       brand: 'Baseus', tipe: 'Compact Quick Charger 20W CCXJ-B01', golongan: 'Charger',
-      area: 'A', kodeGol: 'CHR', prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P06', qty: '1 PCS',
+      area: 'A', kodeGol: 'CHR', prefix: 'A-CHR', lokasi: 'A-CHR-R01-B01-P05', qty: '1 PCS',
       zona: 'KUNING', status: 'PENDING', statusMap: 'REVIEW TIPE' },
-    { barcode: '8886463672211', sku: 'Vivan Adp VPC20 20W PD White',
-      brand: 'Vivan', tipe: 'VPC20', golongan: 'Charger', area: 'A', kodeGol: 'CHR',
-      prefix: 'A-CHR', lokasi: 'A-CHR-R01-B02-P01', qty: '1 PCS',
-      zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     /* barcode belum pasti — QR-nya belum final, tapi lokasinya sudah ada */
     { barcode: '', sku: 'Charger Inf 10W (barcode belum terdaftar)',
       brand: 'Inf', tipe: 'Inf 10W', golongan: 'Charger', area: 'A', kodeGol: 'CHR',
@@ -1042,10 +1030,6 @@
       brand: 'Anker', tipe: 'A2310', golongan: 'Car Charger', area: 'B', kodeGol: 'CCH',
       prefix: 'B-CCH', lokasi: 'B-CCH-R01-B01-P02', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    { barcode: '8992388011234', sku: 'Robot Car Chr RT-C09 17W Dual Usb',
-      brand: 'Robot', tipe: 'RT-C09', golongan: 'Car Charger', area: 'B', kodeGol: 'CCH',
-      prefix: 'B-CCH', lokasi: 'B-CCH-R01-B01-P03', qty: '1 PCS',
-      zona: 'BARU', status: 'NEW', statusMap: 'DRAFT OK' },
 
     /* ---------- C-CBL · Kabel ---------- */
     { barcode: '194644072148', sku: 'Anker Powerline III Usb-C To Usb-C 1.8M Black',
@@ -1059,15 +1043,7 @@
     { barcode: '6932172618568', sku: 'Baseus Cbl Explorer Type-C 100W 1M Black',
       brand: 'Baseus', tipe: 'CAWJ000101', golongan: 'Kabel', area: 'C', kodeGol: 'CBL',
       prefix: 'C-CBL', lokasi: 'C-CBL-R01-B01-P03', qty: '1 PCS',
-      zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    { barcode: '8992388015678', sku: 'Vivan Cbl CSC100S Type-C 1M Black',
-      brand: 'Vivan', tipe: 'CSC100S', golongan: 'Kabel', area: 'C', kodeGol: 'CBL',
-      prefix: 'C-CBL', lokasi: 'C-CBL-R01-B01-P04', qty: '1 PCS',
       zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
-    { barcode: '6953156297814', sku: 'Baseus Cbl Crystal Shine Lightning 1.2M Pink',
-      brand: 'Baseus', tipe: 'CAJY000104', golongan: 'Kabel', area: 'C', kodeGol: 'CBL',
-      prefix: 'C-CBL', lokasi: 'C-CBL-R01-B02-P01', qty: '1 PCS',
-      zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
 
     /* ---------- D-PWB · Powerbank ---------- */
     { barcode: '194644101343', sku: 'Anker PowerCore 10000 A1263 Black',
@@ -1078,10 +1054,6 @@
       brand: 'Baseus', tipe: 'PPBD0501', golongan: 'Powerbank', area: 'D', kodeGol: 'PWB',
       prefix: 'D-PWB', lokasi: 'D-PWB-R01-B01-P02', qty: '1 PCS',
       zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    { barcode: '8992388019012', sku: 'Vivan PwB VPB-P10 10000mAh Slim Black',
-      brand: 'Vivan', tipe: 'VPB-P10', golongan: 'Powerbank', area: 'D', kodeGol: 'PWB',
-      prefix: 'D-PWB', lokasi: 'D-PWB-R01-B01-P03', qty: '1 PCS',
-      zona: 'BARU', status: 'NEW', statusMap: 'DRAFT OK' },
 
     /* ---------- E-TGL · Tempered glass ---------- */
     { barcode: '8992388021001', sku: 'Tempered Glass iPhone 15 Pro Clear Full Cover',
@@ -1095,48 +1067,32 @@
 
     /* ---------- barang gudang umum, bergaya dus ---------- */
     { kode: '1061', sku: 'MC01', varian: 'WHITE', qty: '25 BOX', barcode: '8991002101061',
-      kodeDus: 'MC01-1W', dusKe: 1, totalDus: 1, brand: 'Meeplus', tipe: 'MC01',
-      golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-MCB-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
+      kodeDus: 'MC01-1W', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'MC01',
+      golongan: 'Mug Ceramic', area: 'M', kodeGol: 'MUG', prefix: 'M-MUG',
+      lokasi: 'M-MUG-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { kode: '1061', sku: 'MC01', varian: 'BLACK', qty: '25 BOX', barcode: '8991002101062',
-      kodeDus: 'MC01-1B', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'MC01',
-      golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-MCB-R01-B01-P02', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    { kode: '1062', sku: 'MC02', varian: 'WHITE', qty: '113 PCS', barcode: '8991002101070',
-      kodeDus: 'MC02-1W', dusKe: 1, totalDus: 4, brand: 'Meeplus', tipe: 'MC02',
-      golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-MCB-R01-B01-P03', zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
-    { kode: '1062', sku: 'MC02', varian: 'WHITE', qty: '113 PCS', barcode: '8991002101070',
-      kodeDus: 'MC02-2W', dusKe: 2, totalDus: 4, brand: 'Meeplus', tipe: 'MC02',
-      golongan: 'Mug Ceramic', area: 'G2', kodeGol: 'MCB', prefix: 'G2-MCB',
-      lokasi: 'G2-MCB-R01-B01-P04', zona: 'KUNING', status: 'PENDING', statusMap: 'DRAFT OK' },
+      kodeDus: 'MC01-2B', dusKe: 2, totalDus: 2, brand: 'Meeplus', tipe: 'MC01',
+      golongan: 'Mug Ceramic', area: 'M', kodeGol: 'MUG', prefix: 'M-MUG',
+      lokasi: 'M-MUG-R01-B01-P02', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { kode: '1071', sku: 'TP18', varian: 'NATURAL', qty: '18 TPL', barcode: '8991002101087',
       kodeDus: 'TP18-1N', dusKe: 1, totalDus: 3, brand: 'Meeplus', tipe: 'TP18',
-      golongan: 'Tempat Pensil', area: 'G1', kodeGol: 'TPL', prefix: 'G1-TPL',
-      lokasi: 'G1-TPL-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
-    { kode: '1088', sku: 'KB44', varian: 'BIRU', qty: '40 PCS', barcode: '8991002101094',
-      kodeDus: 'KB44-1B', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'KB44',
-      golongan: 'Kabel', area: 'G4', kodeGol: 'KBL', prefix: 'G4-KBL',
-      lokasi: 'G4-KBL-R01-B02-P06', zona: 'BARU', status: 'NEW', statusMap: 'DRAFT OK' },
+      golongan: 'Tempat Pensil', area: 'P', kodeGol: 'TPL', prefix: 'P-TPL',
+      lokasi: 'P-TPL-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' },
     { kode: '1093', sku: 'RS07', varian: 'MERAH', qty: '60 PCS', barcode: '8991002101100',
       kodeDus: 'RS07-1M', dusKe: 1, totalDus: 1, brand: 'Meeplus', tipe: 'RS07',
-      golongan: 'Rak Susun', area: 'G3', kodeGol: 'RSK', prefix: 'G3-RSK',
-      lokasi: 'G3-RSK-R01-B01-P01', zona: 'MERAH', status: 'RUSAK', statusMap: 'DRAFT OK',
+      golongan: 'Rak Susun', area: 'R', kodeGol: 'RSK', prefix: 'R-RSK',
+      lokasi: 'R-RSK-R01-B01-P01', zona: 'MERAH', status: 'RUSAK', statusMap: 'DRAFT OK',
       catatan: 'Dus penyok di sudut, isi dicek ulang' },
-    { kode: '1101', sku: 'GL22', varian: 'CLEAR', qty: '12 SET', barcode: '8991002101117',
-      kodeDus: 'GL22-1C', dusKe: 1, totalDus: 2, brand: 'Meeplus', tipe: 'GL22',
-      golongan: 'Gelas', area: 'G1', kodeGol: 'GLS', prefix: 'G1-GLS',
-      lokasi: 'G1-GLS-R01-B01-P01', zona: 'HOLD', status: 'HOLD', statusMap: 'DRAFT OK' },
     { kode: '1115', sku: 'ND09', varian: 'GREY', qty: '96 PCS', barcode: '8991002101124',
       kodeDus: 'ND09-1G', dusKe: 1, totalDus: 1, brand: 'Meeplus', tipe: 'ND09',
-      golongan: 'Nampan Dulang', area: 'G4', kodeGol: 'NDL', prefix: 'G4-NDL',
-      lokasi: 'G4-NDL-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' }
+      golongan: 'Nampan Dulang', area: 'N', kodeGol: 'NDL', prefix: 'N-NDL',
+      lokasi: 'N-NDL-R01-B01-P01', zona: 'HIJAU', status: 'READY', statusMap: 'DRAFT OK' }
   ];
 
-  /* Supplier dan GRN dibuat berulang per tiga baris supaya kelihatan
+  /* Supplier, GRN, dan PIC berganti tiap beberapa baris supaya kelihatan
      seperti beberapa kali penerimaan, bukan satu tumpukan. */
-  var SAMPLE_SUPPLIER = ['MEEPLUS', 'SINAR JAYA', 'ACC PRIMA'];
-  var SAMPLE_PIC = ['BUDI', 'RANI', 'JOKO'];
+  var SAMPLE_SUPPLIER = ['MEEPLUS', 'SINAR JAYA', 'ACC PRIMA', 'CAHAYA ABADI'];
+  var SAMPLE_PIC = ['BUDI', 'RANI', 'JOKO', 'SITI'];
 
   function sampleRows() {
     var out = [], i, s, r, k, grup;
@@ -1145,11 +1101,11 @@
       r = blank();
       for (k in s) if (s.hasOwnProperty(k)) r[k] = s[k] == null ? '' : String(s[k]);
 
-      grup = Math.floor(i / 3) % 3;
+      grup = Math.floor(i / 5) % 4;
       r.labelId = makeId(i + 1);
-      r.tanggal = '2026-09-' + pad2(10 + (Math.floor(i / 6) % 6));
+      r.tanggal = '2026-09-' + pad2(10 + grup);
       r.supplier = SAMPLE_SUPPLIER[grup];
-      r.grn = 'GRN-2609-' + pad2(Math.floor(i / 3) + 1);
+      r.grn = 'GRN-2609-' + pad2(grup + 1);
       r.pic = SAMPLE_PIC[grup];
       if (!r.kode) r.kode = r.tipe;
       /* QR payload disiapkan seperti file mapping: barcode|lokasi final */
