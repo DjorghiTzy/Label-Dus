@@ -1,0 +1,530 @@
+/* =====================================================================
+   label.css — HANYA gaya label + aturan @media print.
+   Semua ukuran label dinyatakan dalam mm. Tidak ada px, %, atau rem
+   di dalam .sheet, supaya hasil cetak sama dengan ukuran sebenarnya.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------
+   KERTAS
+   Lebar/tinggi kertas, padding, dan grid diisi app.js lewat style
+   sebaris karena nilainya mengikuti pilihan pengguna.
+   --------------------------------------------------------------- */
+.sheet{
+  --k: 1;                    /* skala huruf, diisi app.js */
+  position:relative;
+  background:var(--paper);
+  color:var(--paper-ink);
+  box-shadow:var(--shadow-paper);
+  overflow:hidden;
+  flex:none;
+  font-family:var(--sans);
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+
+.sheet-grid{
+  display:grid;
+  width:100%; height:100%;
+  justify-content:center;
+  align-content:start;
+}
+
+/* nomor lembar — hanya di layar */
+.sheet::after{
+  content:attr(data-page);
+  position:absolute; right:0; bottom:-19px;
+  font:600 11px/1 var(--sans);
+  color:var(--ink-3);
+}
+
+/* ---------------------------------------------------------------
+   LABEL — dasar bersama
+   --------------------------------------------------------------- */
+.lbl{
+  position:relative;
+  width:100%; height:100%;
+  overflow:hidden;
+  break-inside:avoid;
+  page-break-inside:avoid;
+  background:var(--paper);
+  color:var(--paper-ink);
+}
+
+/* garis bantu potong */
+.sheet.cut .lbl{ outline:0.2mm dashed rgba(0,0,0,.35); outline-offset:0; }
+
+/* Warna zona / status.
+   app.js menaruh kelas z-* dan st-* pada elemen yang butuh warna. */
+.z-hijau { --zc: var(--z-hijau); }
+.z-merah { --zc: var(--z-merah); }
+.z-kuning{ --zc: var(--z-kuning); }
+.z-new   { --zc: var(--z-new); }
+.z-hold  { --zc: var(--z-hold); }
+.z-lain  { --zc: var(--z-lain); }
+
+.st-ready  { --sc: var(--st-ready); }
+.st-pending{ --sc: var(--st-pending); }
+.st-new    { --sc: var(--st-new); }
+.st-hold   { --sc: var(--st-hold); }
+.st-rusak  { --sc: var(--st-rusak); }
+.st-lain   { --sc: var(--st-lain); }
+
+/* Bagian bersama -------------------------------------------------- */
+
+/* pita warna zona di tepi kiri */
+.band{ background:var(--zc,var(--z-lain)); }
+.sheet.ink .band{
+  background:repeating-linear-gradient(
+    -45deg,
+    var(--zc,var(--z-lain)) 0 0.6mm,
+    transparent 0.6mm 1.8mm);
+  box-shadow:inset 0 0 0 0.25mm var(--zc,var(--z-lain));
+}
+
+/* keping (chip) zona / status */
+.chip{
+  display:flex; align-items:center; justify-content:center;
+  background:var(--zc,var(--z-lain));
+  color:#fff;
+  font-family:var(--disp);
+  font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  line-height:1; white-space:nowrap; overflow:hidden;
+}
+.chip.s{ background:var(--sc,var(--st-lain)); }
+.sheet.ink .chip{
+  background:transparent; color:var(--zc,var(--z-lain));
+  box-shadow:inset 0 0 0 0.5mm var(--zc,var(--z-lain));
+}
+.sheet.ink .chip.s{ color:var(--sc,var(--st-lain)); box-shadow:inset 0 0 0 0.5mm var(--sc,var(--st-lain)); }
+
+/* teks besar condensed */
+.big{
+  font-family:var(--disp);
+  font-weight:700;
+  line-height:.9;
+  letter-spacing:-.01em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.mono{ font-family:var(--mono); }
+.cap{
+  font-family:var(--sans); font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* QR dan barcode */
+.qr{ display:block; shape-rendering:crispEdges; }
+.bc{ display:block; width:100%; height:100%; }
+.bc rect{ fill:#000; }
+
+/* pita judul gelap */
+.tbar{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:2mm; min-width:0; overflow:hidden;
+  background:#0E1620; color:#fff;
+}
+.tbar > span{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sheet.ink .tbar{
+  background:transparent; color:#0E1620;
+  box-shadow:inset 0 0 0 0.4mm #0E1620;
+}
+
+/* =====================================================================
+   1. LABEL RAK — 100 × 25 mm. UKURAN PASTI.
+   Dibaca sambil berjalan dari 2–3 meter, jadi kode lokasi memakai
+   hampir seluruh tinggi 25 mm.
+   ===================================================================== */
+.lbl-rak100{
+  display:grid;
+  grid-template-columns:4.5mm minmax(0,1fr) auto;
+  border:0.3mm solid #0E1620;
+  align-items:stretch;
+}
+.lbl-rak100 .r-main{
+  display:flex; flex-direction:column; justify-content:center;
+  padding:0.8mm 1.6mm;
+  min-width:0;                 /* wajib: supaya ellipsis bekerja */
+  gap:0.6mm;
+}
+.lbl-rak100 .r-loc{
+  /* font-size diisi app.js: menyesuaikan panjang teks */
+  line-height:.88;
+  max-height:14mm;
+}
+.lbl-rak100 .r-meta{
+  display:flex; align-items:baseline; gap:2.2mm;
+  font-size:calc(3.1mm * var(--k));
+  line-height:1;
+  color:#26333F;
+  min-width:0;
+}
+.lbl-rak100 .r-meta span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lbl-rak100 .r-meta .qty{ font-weight:700; color:#0E1620; flex:none; }
+.lbl-rak100 .r-meta .sku{ font-weight:700; flex:0 1 auto; }
+.lbl-rak100 .r-meta .dus{ font-family:var(--mono); flex:none; }
+
+.lbl-rak100 .r-side{
+  display:flex; align-items:center; gap:1.2mm;
+  padding:1mm 1.4mm 1mm 0;
+}
+.lbl-rak100 .r-side .chip{
+  writing-mode:vertical-rl; transform:rotate(180deg);
+  height:21mm; width:4.6mm;
+  font-size:calc(2.9mm * var(--k));
+  border-radius:0.6mm;
+}
+.lbl-rak100 .qr{ width:17mm; height:17mm; }
+
+/* =====================================================================
+   2. LABEL DUS — 100 × 250 mm. UKURAN PASTI.
+   Banner tegak untuk sisi depan dus. Ruang kosong disengaja.
+   ===================================================================== */
+.lbl-dus250{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);   /* wajib: tanpa ini kolom ikut melebar */
+  grid-template-rows:12mm 1fr;
+  border:0.4mm solid #0E1620;
+}
+.lbl-dus250 .tbar{
+  padding:0 3.5mm;
+  font-size:calc(3.4mm * var(--k));
+  letter-spacing:.12em; font-weight:700; text-transform:uppercase;
+}
+.lbl-dus250 .tbar .id{ font-family:var(--mono); letter-spacing:.04em; }
+
+.lbl-dus250 .d-body{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:66mm 1.2mm 1fr 36mm 26mm 9mm;
+  row-gap:4mm;
+  padding:4mm;
+  min-height:0; min-width:0;
+}
+
+/* 1 — kode besar */
+.lbl-dus250 .d-hero{
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; min-width:0;
+}
+.lbl-dus250 .d-hero .big{ width:100%; text-align:center; }   /* font-size dari app.js */
+.lbl-dus250 .d-hero .sub{
+  margin-top:1.5mm;
+  font-size:calc(7mm * var(--k));
+  font-family:var(--disp); font-weight:600; letter-spacing:.06em;
+  line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:100%;
+}
+.lbl-dus250 .d-hero .sub em{ font-style:normal; color:#46545F; }
+
+/* 2 — garis pemisah tegas */
+.lbl-dus250 .d-rule{ background:#0E1620; }
+
+/* 3 — daftar data */
+.lbl-dus250 .d-list{ display:flex; flex-direction:column; justify-content:space-between; min-height:0; }
+.lbl-dus250 .d-row{
+  display:flex; align-items:baseline; gap:3mm;
+  padding-bottom:1.6mm;
+  border-bottom:0.25mm dashed #8A97A3;
+  min-width:0;
+}
+.lbl-dus250 .d-row .lb{
+  flex:none; width:26mm;
+  font-size:calc(3.2mm * var(--k));
+  font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:#46545F;
+}
+.lbl-dus250 .d-row .vl{
+  flex:1 1 auto; min-width:0;
+  font-size:calc(6mm * var(--k));
+  font-family:var(--disp); font-weight:600; line-height:1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.lbl-dus250 .d-row.sm .vl{ font-size:calc(4.6mm * var(--k)); font-family:var(--sans); font-weight:600; }
+/* baris lokasi: garis tebal untuk ditulis tangan pakai spidol */
+.lbl-dus250 .d-row.write{
+  align-items:flex-end;
+  border-bottom:0.9mm solid #0E1620;
+  padding-bottom:7mm;
+}
+.lbl-dus250 .d-row.write .lb{ font-size:calc(3.6mm * var(--k)); color:#0E1620; }
+
+/* 4 — blok kode */
+.lbl-dus250 .d-codes{ display:flex; align-items:center; gap:4mm; min-width:0; }
+.lbl-dus250 .d-codes .qr{ width:34mm; height:34mm; flex:none; }
+.lbl-dus250 .d-codes .bcwrap{
+  flex:1 1 auto; min-width:0; height:34mm;
+  display:flex; flex-direction:column; justify-content:center; gap:1mm;
+}
+.lbl-dus250 .d-codes .bcwrap .bc{ height:26mm; }
+.lbl-dus250 .d-codes .bcwrap .bctxt{
+  font-family:var(--mono); font-size:calc(3mm * var(--k));
+  letter-spacing:.1em; text-align:center;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* 5 — dua keping lebar penuh */
+.lbl-dus250 .d-chips{ display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; gap:2mm; }
+.lbl-dus250 .d-chips .chip{ font-size:calc(7.5mm * var(--k)); border-radius:1mm; }
+
+/* 6 — kaki */
+.lbl-dus250 .d-foot{
+  display:flex; align-items:center; justify-content:space-between;
+  border-top:0.25mm solid #8A97A3; padding-top:1.5mm;
+  font-size:calc(3.4mm * var(--k)); color:#46545F;
+  font-family:var(--mono); letter-spacing:.04em;
+  white-space:nowrap; overflow:hidden;
+}
+
+/* =====================================================================
+   3. DUS STANDAR — 2 × 4 per A4 (pengganti sheet PRINT_LABEL_8UP)
+   ===================================================================== */
+.lbl-dus8{
+  display:grid; grid-template-columns:3.5mm minmax(0,1fr);
+  border:0.3mm solid #0E1620;
+}
+.lbl-dus8 .g-main{ display:flex; flex-direction:column; padding:2.5mm 3mm; gap:1.4mm; min-width:0; }
+.lbl-dus8 .g-top{ display:flex; align-items:baseline; justify-content:space-between; gap:2mm;
+  font-size:calc(2.8mm * var(--k)); color:#46545F; letter-spacing:.08em; font-weight:700; text-transform:uppercase; }
+.lbl-dus8 .g-top .id{ font-family:var(--mono); letter-spacing:.02em; }
+.lbl-dus8 .g-mid{ display:flex; align-items:center; gap:3mm; min-width:0; flex:1 1 auto; }
+.lbl-dus8 .g-code{ flex:1 1 auto; min-width:0; }
+.lbl-dus8 .g-code .sub{ font-size:calc(4.4mm * var(--k)); font-family:var(--disp); font-weight:600;
+  letter-spacing:.05em; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-dus8 .qr{ width:19mm; height:19mm; flex:none; }
+.lbl-dus8 .g-rows{ display:flex; flex-direction:column; gap:.9mm; }
+.lbl-dus8 .g-r{ display:flex; gap:2mm; align-items:baseline; font-size:calc(3.2mm * var(--k)); min-width:0; }
+.lbl-dus8 .g-r b{ flex:none; width:19mm; font-size:calc(2.6mm * var(--k)); letter-spacing:.08em;
+  text-transform:uppercase; color:#46545F; }
+.lbl-dus8 .g-r span{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-weight:600; }
+.lbl-dus8 .g-r.write span{ border-bottom:0.6mm solid #0E1620; min-height:4.5mm; }
+.lbl-dus8 .g-foot{ display:flex; gap:1.5mm; align-items:stretch; height:6.5mm; }
+.lbl-dus8 .g-foot .chip{ flex:1 1 0; font-size:calc(3.6mm * var(--k)); border-radius:.8mm; }
+.lbl-dus8 .g-foot .when{ flex:none; display:flex; align-items:center;
+  font-family:var(--mono); font-size:calc(2.7mm * var(--k)); color:#46545F; }
+
+/* =====================================================================
+   4. DUS RINGKAS — 3 × 4 per A4
+   ===================================================================== */
+.lbl-dus12{
+  display:flex; flex-direction:column;
+  border:0.3mm solid #0E1620;
+  border-left:2.6mm solid var(--zc,var(--z-lain));
+  padding:2mm 2.4mm; gap:1mm;
+}
+.sheet.ink .lbl-dus12{ border-left-color:#0E1620; }
+.lbl-dus12 .c-top{ display:flex; justify-content:space-between; gap:1.5mm;
+  font-size:calc(2.5mm * var(--k)); color:#46545F; font-family:var(--mono); }
+.lbl-dus12 .c-hero{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.lbl-dus12 .c-hero .sub{ font-size:calc(3.6mm * var(--k)); font-family:var(--disp);
+  font-weight:600; letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-dus12 .c-rows{ display:flex; flex-direction:column; gap:.6mm; font-size:calc(2.8mm * var(--k)); }
+.lbl-dus12 .c-r{ display:flex; gap:1.5mm; min-width:0; }
+.lbl-dus12 .c-r b{ flex:none; width:13mm; color:#46545F; font-size:calc(2.3mm * var(--k));
+  letter-spacing:.06em; text-transform:uppercase; }
+.lbl-dus12 .c-r span{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-weight:600; }
+.lbl-dus12 .c-r.write span{ border-bottom:0.5mm solid #0E1620; min-height:3.6mm; }
+.lbl-dus12 .c-foot{ display:flex; gap:1.2mm; height:5mm; }
+.lbl-dus12 .c-foot .chip{ flex:1 1 0; font-size:calc(2.9mm * var(--k)); border-radius:.7mm; }
+
+/* =====================================================================
+   5. DUS BESAR — 2 × 2 per A4 + barcode
+   ===================================================================== */
+.lbl-dus4{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:9mm 1fr;
+  border:0.4mm solid #0E1620;
+}
+.lbl-dus4 .tbar{ padding:0 3mm; font-size:calc(3.4mm * var(--k));
+  letter-spacing:.14em; font-weight:700; text-transform:uppercase; }
+.lbl-dus4 .tbar .id{ font-family:var(--mono); letter-spacing:.02em; }
+.lbl-dus4 .b-body{ display:flex; flex-direction:column; padding:3.5mm; gap:2.5mm; min-height:0; min-width:0; }
+.lbl-dus4 .b-hero{ display:flex; align-items:center; gap:4mm; min-width:0; }
+.lbl-dus4 .b-hero .txt{ flex:1 1 auto; min-width:0; }
+.lbl-dus4 .b-hero .sub{ font-size:calc(6mm * var(--k)); font-family:var(--disp); font-weight:600;
+  letter-spacing:.05em; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-dus4 .qr{ width:26mm; height:26mm; flex:none; }
+.lbl-dus4 .b-rows{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:space-around; }
+.lbl-dus4 .b-r{ display:flex; align-items:baseline; gap:3mm; min-width:0;
+  border-bottom:0.25mm dashed #8A97A3; padding-bottom:1.2mm; }
+.lbl-dus4 .b-r b{ flex:none; width:23mm; font-size:calc(2.9mm * var(--k)); letter-spacing:.09em;
+  text-transform:uppercase; color:#46545F; }
+.lbl-dus4 .b-r span{ flex:1 1 auto; min-width:0; font-size:calc(4.6mm * var(--k));
+  font-family:var(--disp); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-dus4 .b-r.write{ border-bottom:0.8mm solid #0E1620; padding-bottom:5mm; }
+.lbl-dus4 .b-bc{ height:14mm; display:flex; flex-direction:column; gap:.6mm; }
+.lbl-dus4 .b-bc .bc{ flex:1 1 auto; }
+.lbl-dus4 .b-bc .bctxt{ font-family:var(--mono); font-size:calc(2.6mm * var(--k));
+  text-align:center; letter-spacing:.1em; }
+.lbl-dus4 .b-foot{ display:flex; gap:2mm; height:9mm; }
+.lbl-dus4 .b-foot .chip{ flex:1 1 0; font-size:calc(4.6mm * var(--k)); border-radius:.9mm; }
+
+/* =====================================================================
+   6. LABEL RAK / BIN — 2 × 6 strip (proporsional)
+   ===================================================================== */
+.lbl-rak{
+  display:grid; grid-template-columns:4mm minmax(0,1fr) auto;
+  border:0.3mm solid #0E1620; align-items:stretch;
+}
+.lbl-rak .k-main{ display:flex; flex-direction:column; justify-content:center;
+  padding:1.5mm 2.5mm; gap:1mm; min-width:0; }
+.lbl-rak .k-meta{ display:flex; gap:3mm; font-size:calc(3mm * var(--k)); color:#46545F; min-width:0; }
+.lbl-rak .k-meta span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lbl-rak .k-meta b{ color:#0E1620; }
+.lbl-rak .k-side{ display:flex; align-items:center; padding-right:2mm; gap:1.5mm; }
+.lbl-rak .qr{ width:15mm; height:15mm; }
+.lbl-rak .k-side .chip{ width:5mm; height:16mm; writing-mode:vertical-rl; transform:rotate(180deg);
+  font-size:calc(2.8mm * var(--k)); border-radius:.6mm; }
+
+/* =====================================================================
+   7. MINI — 4 × 6 stiker kecil
+   ===================================================================== */
+.lbl-mini{
+  display:flex; flex-direction:column; justify-content:center;
+  border:0.3mm solid #0E1620;
+  border-top:1.8mm solid var(--zc,var(--z-lain));
+  padding:1.5mm 2mm; gap:.7mm; min-width:0;
+}
+.sheet.ink .lbl-mini{ border-top-color:#0E1620; }
+.lbl-mini .m-sub{ font-size:calc(3mm * var(--k)); font-family:var(--disp); font-weight:600;
+  letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-mini .m-row{ display:flex; justify-content:space-between; gap:1.5mm;
+  font-size:calc(2.6mm * var(--k)); font-family:var(--mono); color:#46545F; min-width:0; }
+.lbl-mini .m-row span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* =====================================================================
+   8. THERMAL — 1 label per lembar 100 × 50 mm
+   ===================================================================== */
+.lbl-thermal{
+  display:flex; flex-direction:column;
+  border:0.4mm solid #0E1620; padding:2.2mm; gap:1.2mm;
+}
+.lbl-thermal .t-top{ display:flex; justify-content:space-between; gap:2mm; flex:none;
+  font-size:calc(2.7mm * var(--k)); font-family:var(--mono); color:#46545F;
+  white-space:nowrap; overflow:hidden; }
+.lbl-thermal .t-mid{ display:flex; gap:2.5mm; align-items:center;
+  flex:1 1 auto; min-width:0; min-height:0; overflow:hidden; }
+.lbl-thermal .t-txt{ flex:1 1 auto; min-width:0; }
+.lbl-thermal .t-txt .sub{ font-size:calc(4.2mm * var(--k)); font-family:var(--disp); font-weight:600;
+  letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-thermal .t-txt .meta{ font-size:calc(2.9mm * var(--k)); color:#46545F; margin-top:.6mm;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-thermal .qr{ width:18mm; height:18mm; flex:none; }
+.lbl-thermal .t-bc{ height:8mm; flex:none; }
+.lbl-thermal .t-foot{ display:flex; gap:1.5mm; height:6.5mm; flex:none; }
+.lbl-thermal .t-foot .chip{ flex:1 1 0; font-size:calc(3.4mm * var(--k)); border-radius:.8mm; }
+
+/* =====================================================================
+   9. KARTU GANTUNG — 2 × 2, status raksasa, lubang gantung
+   ===================================================================== */
+.lbl-tag{
+  display:flex; flex-direction:column;
+  border:0.5mm solid #0E1620; border-radius:3mm;
+  padding:4mm 4mm 3.5mm; gap:2mm; position:relative;
+}
+.lbl-tag .hole{
+  position:absolute; top:5mm; left:50%; transform:translateX(-50%);
+  width:7mm; height:7mm; border-radius:50%;
+  border:0.5mm solid #0E1620;
+}
+.lbl-tag .t-head{ height:13mm; }
+.lbl-tag .t-status{
+  font-family:var(--disp); font-weight:700; text-transform:uppercase;
+  text-align:center; line-height:.9; color:var(--sc,var(--st-lain));
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  /* font-size diisi app.js */
+}
+.lbl-tag .t-code{ text-align:center; margin-top:1mm; }
+.lbl-tag .t-code .sub{ font-size:calc(5mm * var(--k)); font-family:var(--disp); font-weight:600;
+  letter-spacing:.06em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-tag .t-rows{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; gap:1.2mm; }
+.lbl-tag .t-r{ display:flex; gap:2.5mm; align-items:baseline; min-width:0;
+  border-bottom:0.25mm dashed #8A97A3; padding-bottom:1mm; }
+.lbl-tag .t-r b{ flex:none; width:20mm; font-size:calc(2.8mm * var(--k)); letter-spacing:.08em;
+  text-transform:uppercase; color:#46545F; }
+.lbl-tag .t-r span{ flex:1 1 auto; min-width:0; font-size:calc(4mm * var(--k)); font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lbl-tag .t-r.write{ border-bottom:0.8mm solid #0E1620; padding-bottom:4.5mm; }
+.lbl-tag .t-foot{ display:flex; align-items:center; gap:3mm; }
+.lbl-tag .qr{ width:20mm; height:20mm; flex:none; }
+.lbl-tag .t-zone{ flex:1 1 auto; height:11mm; }
+.lbl-tag .t-zone .chip{ height:100%; font-size:calc(5.5mm * var(--k)); border-radius:1mm; }
+
+/* =====================================================================
+   HALAMAN KALIBRASI
+   Kotak 100 × 100 mm + penggaris. Dipakai untuk memastikan printer
+   benar-benar mencetak 1:1.
+   ===================================================================== */
+.calib{ padding:15mm; font-family:var(--sans); color:#0E1620; }
+.calib h1{ font-size:6mm; margin:0 0 2mm; font-family:var(--disp); letter-spacing:.06em; text-transform:uppercase; }
+.calib p{ font-size:3.4mm; margin:0 0 6mm; line-height:1.5; max-width:150mm; }
+.calib ol{ font-size:3.4mm; line-height:1.6; padding-left:6mm; margin:6mm 0 0; max-width:150mm; }
+.calib-box{
+  width:100mm; height:100mm; border:0.4mm solid #0E1620;
+  position:relative; margin-bottom:8mm;
+  display:flex; align-items:center; justify-content:center;
+}
+.calib-box .lbltxt{ font-family:var(--disp); font-size:8mm; letter-spacing:.08em; color:#8A97A3; }
+.calib-box .tick{ position:absolute; background:#0E1620; }
+.calib-box .tick.h{ height:0.25mm; left:0; }
+.calib-box .tick.v{ width:0.25mm; top:0; }
+.calib-rule{ position:relative; width:150mm; height:12mm; border-bottom:0.4mm solid #0E1620; }
+.calib-rule .t{ position:absolute; bottom:0; width:0.25mm; background:#0E1620; }
+.calib-rule .n{ position:absolute; bottom:6mm; font-size:2.6mm; font-family:var(--mono); transform:translateX(-50%); }
+
+/* =====================================================================
+   ATURAN CETAK
+   Kerangka aplikasi disembunyikan seluruhnya; kertas dipindahkan ke
+   #paper yang berada langsung di bawah <body>, jadi tidak ada satu pun
+   pembungkus yang bisa menyisakan halaman kosong.
+   ===================================================================== */
+#paper{ display:none; margin:0; padding:0; }
+
+@media print{
+  html,body{
+    height:auto !important;
+    min-height:0 !important;
+    margin:0 !important;
+    padding:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+  }
+  #shell,#backdrop,.modal,.toast,.drop{ display:none !important; }
+
+  #paper{
+    display:block !important;
+    margin:0 !important; padding:0 !important;
+    background:#fff !important;
+  }
+
+  .stage{
+    transform:none !important;
+    display:block !important;
+    width:auto !important;
+    margin:0 !important;
+    gap:0 !important;
+    min-height:0 !important;
+  }
+
+  .sheet{
+    box-shadow:none !important;
+    margin:0 !important;
+    overflow:hidden;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+  /* Pemisah halaman dipasang SEBELUM lembar kedua dan seterusnya,
+     bukan sesudah lembar terakhir — ini yang mencegah halaman kosong. */
+  .sheet + .sheet{ break-before:page; page-break-before:always; }
+  .sheet::after{ content:none !important; }
+
+  .lbl,.sheet,.chip,.band,.tbar{
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+}
