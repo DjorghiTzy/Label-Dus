@@ -745,6 +745,119 @@ function cek(nama, syarat, tambahan) {
     })
 
 
+    /* ---- gerak antarmuka ---- */
+    .then(function () {
+      console.log('\n== Gerak antarmuka ==');
+      return page.click('#tabPrint')
+        .then(function () { return page.waitForTimeout(700); })
+        .then(function () { return page.click('[data-fam="rak"]'); })
+        .then(function () { return page.waitForTimeout(500); })
+        .then(function () {
+          return page.evaluate(function () {
+            var n = document.getElementById('famInd');
+            return { x: n.style.getPropertyValue('--x'), w: n.style.getPropertyValue('--w') };
+          });
+        })
+        .then(function (a) {
+          return page.click('[data-fam="dus"]')
+            .then(function () { return page.waitForTimeout(500); })
+            .then(function () {
+              return page.evaluate(function () {
+                var n = document.getElementById('famInd');
+                return { x: n.style.getPropertyValue('--x'), w: n.style.getPropertyValue('--w') };
+              });
+            })
+            .then(function (b) {
+              cek('penanda keluarga template ikut meluncur',
+                  a.x !== b.x && parseFloat(b.w) > 0, a.x + ' -> ' + b.x);
+            });
+        })
+        /* modal: menutup pun dianimasikan, lalu benar-benar bersih */
+        .then(function () { return page.click('#btnHelp'); })
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () { return page.keyboard.press('Escape'); })
+        .then(function () { return page.waitForTimeout(80); })
+        .then(function () {
+          return page.evaluate(function () { return document.getElementById('mHelp').className; });
+        })
+        .then(function (c) { cek('modal memutar animasi saat ditutup', /menutup/.test(c), c); })
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () {
+          return page.evaluate(function () {
+            var m = document.getElementById('mHelp');
+            return m.hidden && !/menutup/.test(m.className) && document.getElementById('backdrop').hidden;
+          });
+        })
+        .then(function (ok) { cek('setelah animasi, modal dan latarnya bersih', ok === true); })
+        /* membuka modal lain di tengah animasi tutup tidak boleh ikut hilang */
+        .then(function () { return page.click('#btnHelp'); })
+        .then(function () { return page.waitForTimeout(250); })
+        .then(function () { return page.keyboard.press('Escape'); })
+        .then(function () { return page.click('#tabData'); })
+        .then(function () { return page.click('#btnKatalog'); })
+        .then(function () { return page.waitForTimeout(500); })
+        .then(function () {
+          return page.evaluate(function () {
+            return !document.getElementById('mKat').hidden && !document.getElementById('backdrop').hidden;
+          });
+        })
+        .then(function (ok) { cek('modal berikutnya tidak ikut tertutup', ok === true); })
+        .then(function () { return page.keyboard.press('Escape'); })
+        .then(function () { return page.waitForTimeout(400); })
+        /* menu turun memakai visibility supaya bisa dianimasikan */
+        .then(function () { return page.click('#btnExport'); })
+        .then(function () { return page.waitForTimeout(350); })
+        .then(function () {
+          return page.evaluate(function () {
+            return getComputedStyle(document.querySelector('#menuExport .menu-pop')).visibility;
+          });
+        })
+        .then(function (v) { cek('menu turun terbuka', v === 'visible', v); })
+        .then(function () { return page.click('#statLeft'); })
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () {
+          return page.evaluate(function () {
+            var c = getComputedStyle(document.querySelector('#menuExport .menu-pop'));
+            return c.visibility + '/' + c.opacity;
+          });
+        })
+        .then(function (v) { cek('menu turun tertutup rapi', v === 'hidden/0', v); });
+    })
+
+    /* ---- data contoh ---- */
+    .then(function () {
+      console.log('\n== Data contoh ==');
+      return page.evaluate(function () {
+        var D = window.LG.data, R = D.sampleRows();
+        var pre = {}, i;
+        for (i = 0; i < R.length; i++) if (R[i].prefix) pre[R[i].prefix] = 1;
+        return {
+          jumlah: R.length,
+          tanpaLokasi: R.filter(function (r) { return D.belumLokasiFinal(r); }).length,
+          prefix: Object.keys(pre).length,
+          lengkap: R.filter(function (r) {
+            return r.barcode && r.sku && r.brand && r.tipe && r.golongan && r.prefix &&
+                   r.supplier && r.grn && r.pic && r.tanggal;
+          }).length,
+          adaReviewTipe: R.some(function (r) { return D.statusMapping(r) === 'tipe'; }),
+          adaReviewBarcode: R.some(function (r) { return D.statusMapping(r) === 'barcode'; }),
+          adaDus: R.filter(function (r) { return r.kodeDus; }).length,
+          qrIsi: R.filter(function (r) { return r.qrPayload; }).length
+        };
+      });
+    })
+    .then(function (r) {
+      cek('data contoh berisi 30 baris', r.jumlah === 30, r.jumlah + ' baris');
+      cek('semua kolom penting terisi', r.lengkap >= 27, r.lengkap + '/30 lengkap');
+      cek('ada beberapa prefix berbeda', r.prefix >= 5, r.prefix + ' prefix');
+      cek('ada baris tanpa lokasi final untuk mencoba generator',
+          r.tanpaLokasi === 3, r.tanpaLokasi + ' baris');
+      cek('ada contoh REVIEW TIPE dan REVIEW BARCODE',
+          r.adaReviewTipe && r.adaReviewBarcode);
+      cek('ada baris bergaya dus untuk template Label dus', r.adaDus >= 8, r.adaDus + ' baris');
+      cek('QR Payload sudah terisi untuk yang punya lokasi', r.qrIsi >= 24, r.qrIsi + ' baris');
+    })
+
     /* ---- jaringan & error ---- */
     .then(function () {
       console.log('\n== Jaringan & error ==');

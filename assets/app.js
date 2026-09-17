@@ -41,9 +41,14 @@
   function toast(msg) {
     var t = $('toast');
     t.textContent = msg;
+    t.className = 'toast';
     t.hidden = false;
     if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.hidden = true; }, 3200);
+    /* dua tahap: meluncur keluar dulu, baru disembunyikan */
+    toastTimer = setTimeout(function () {
+      t.className = 'toast menutup';
+      toastTimer = setTimeout(function () { t.hidden = true; t.className = 'toast'; }, 220);
+    }, 3200);
   }
 
   /* ============================== URUNGKAN ==============================
@@ -98,9 +103,14 @@
   function doSave() {
     var ok = D.save(state(), D.dbGet());
     var d = new Date();
-    $('saveNote').textContent = ok
+    var n = $('saveNote');
+    n.textContent = ok
       ? 'Tersimpan ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
       : 'Tidak bisa menyimpan di browser ini';
+    /* kedipan sekejap supaya terlihat bahwa datanya baru saja disimpan */
+    n.className = 'savenote';
+    void n.offsetWidth;                    /* paksa animasinya mulai lagi */
+    n.className = 'savenote baru';
   }
   function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
 
@@ -1371,16 +1381,38 @@
   var openId = null;
   function openModal(id) {
     closeModal();
+    if (tutupTimer) { clearTimeout(tutupTimer); tutupTimer = 0; }
+    els('.modal.menutup').forEach(function (n) {
+      n.hidden = true;
+      n.className = n.className.replace(/ ?menutup/g, '');
+    });
     openId = id;
+    $('backdrop').className = 'backdrop';
     $('backdrop').hidden = false;
+    $(id).className = $(id).className.replace(/ ?menutup/g, '');
     $(id).hidden = false;
     var f = el('input,select,textarea,button', $(id));
     if (f) try { f.focus(); } catch (e) {}
   }
+  /* Menutup ikut dianimasikan: kelas "menutup" memutar animasi balik,
+     baru setelah itu elemennya disembunyikan. Kalau ada modal lain yang
+     dibuka di tengah jalan, penutupannya dibatalkan supaya tidak ada
+     modal yang ikut tersembunyi. */
+  var tutupTimer = 0;
   function closeModal() {
-    if (openId) $(openId).hidden = true;
+    if (!openId) { $('backdrop').hidden = true; return; }
+    var n = $(openId), bd = $('backdrop');
     openId = null;
-    $('backdrop').hidden = true;
+    n.className = (n.className + ' menutup').replace(/\s+/g, ' ');
+    bd.className = 'backdrop menutup';
+    if (tutupTimer) clearTimeout(tutupTimer);
+    tutupTimer = setTimeout(function () {
+      tutupTimer = 0;
+      if (openId) return;                    /* keburu ada yang dibuka lagi */
+      n.hidden = true; bd.hidden = true;
+      n.className = n.className.replace(/ ?menutup/g, '');
+      bd.className = 'backdrop';
+    }, 150);
   }
 
   /* ============================== PANEL ============================== */
@@ -1425,11 +1457,15 @@
     }
     $('tplPicker').innerHTML = h.join('');
 
+    var famAktif = null;
     els('#famTabs .famtab').forEach(function (b) {
       var on_ = b.getAttribute('data-fam') === opts.fam;
       b.className = 'famtab' + (on_ ? ' is-on' : '');
       b.setAttribute('aria-selected', on_ ? 'true' : 'false');
+      if (on_) famAktif = b;
     });
+    /* penanda meluncur, sama seperti pemilih CV/OL dan tab utama */
+    geserPenanda('famInd', famAktif);
     $('famNote').textContent = famOf(opts.fam).desc + ' ' + list.length + ' template.';
   }
 
@@ -1580,7 +1616,11 @@
     $('tabPrint').setAttribute('aria-selected', dataOn ? 'false' : 'true');
     geserPenanda('tabInd', dataOn ? $('tabData') : $('tabPrint'));
     tipTutup();
-    if (!dataOn) { renderPreview(); }
+    if (!dataOn) {
+      renderPreview();
+      /* lebar tombol keluarga baru terukur setelah panelnya tampil */
+      geserPenanda('famInd', el('#famTabs .famtab.is-on'));
+    }
   }
 
   /* ============================== BANTUAN ============================== */
@@ -1870,7 +1910,7 @@
         markUndo('isi data contoh');
         rows = D.sampleRows();
         renderTable(); schedulePreview(); doSave();
-        toast('12 baris contoh dimasukkan.');
+        toast('30 baris contoh dimasukkan.');
       } else if (act === 'clear') {
         tanya({
           judul: 'Kosongkan seluruh data label?',
@@ -1980,7 +2020,7 @@
         markUndo('isi data contoh');
         rows = D.sampleRows();
         renderTable(); schedulePreview(); doSave();
-        toast('12 baris contoh dimasukkan.');
+        toast('30 baris contoh dimasukkan.');
       } else if (act === 'import') {
         showTab('data'); $('fileIn').value = ''; $('fileIn').click();
       } else if (act === 'data') {
@@ -2068,13 +2108,14 @@
     }
 
     /* tempatkan penanda tanpa animasi saat pertama kali */
-    ['tabInd', 'dbInd'].forEach(function (id) {
+    var PENANDA = ['tabInd', 'dbInd', 'famInd'];
+    PENANDA.forEach(function (id) {
       var n = $(id); if (n) n.style.transition = 'none';
     });
     showTab('data');
     syncDbPick();
     setTimeout(function () {
-      ['tabInd', 'dbInd'].forEach(function (id) {
+      PENANDA.forEach(function (id) {
         var n = $(id); if (n) n.style.transition = '';
       });
     }, 60);
@@ -2082,6 +2123,7 @@
     on(window, 'resize', function () {
       geserPenanda('tabInd', $('tabData').className.indexOf('is-on') >= 0 ? $('tabData') : $('tabPrint'));
       syncDbPick();
+      geserPenanda('famInd', el('#famTabs .famtab.is-on'));
     });
 
     refreshUndo();
