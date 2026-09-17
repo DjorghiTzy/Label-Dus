@@ -104,9 +104,16 @@ Yang ditangani otomatis:
 - Sheet dipilih sendiri berdasarkan **isinya**, bukan namanya: yang
   dihitung adalah berapa judul kolom yang dikenali dan berapa baris
   datanya. Sheet pendamping (`Data Issues`, `Summary Golongan`,
-  `Kode & Aturan`) dan sheet petunjuk (`PRINT`, `SETUP`, `README`)
-  tidak pernah menang selama ada sheet SKU yang strukturnya sehat.
-  Pada workbook master gudang ACC, yang terpilih `Draft Pengelompokan`.
+  `Ringkasan Area`, `Kode & Aturan`) dan sheet petunjuk (`PRINT`,
+  `SETUP`, `README`) tidak pernah menang selama ada sheet SKU yang
+  strukturnya sehat. Kalau ada sheet **`Claude Import`**, itulah yang
+  dipakai — sheet itu memang disiapkan untuk aplikasi ini. Kalau tidak
+  ada, yang terpilih `Draft Pengelompokan`.
+- Kolom **`QR Payload`** dipakai apa adanya. Kalau file mapping sudah
+  menuliskan isi QR-nya, aplikasi tidak menyusun ulang.
+- Kolom **`Status Mapping`** menandai baris: `DRAFT OK` bersih,
+  `REVIEW TIPE` diberi tanda ringan, `REVIEW BARCODE` diberi tanda bahwa
+  QR-nya belum final. Tidak ada baris yang dibuang karena statusnya.
 - `Prefix Lokasi` (`A-CHR`) masuk ke kolomnya sendiri, bukan ke
   **Lokasi final**. Prefix cuma menunjukkan area dan golongan — rak,
   baris, dan posisi (`R01-B01-P01`) tidak pernah ditebak aplikasi.
@@ -207,7 +214,7 @@ dibuat sebesar mungkin karena dibaca sambil berjalan.
 
 | Template | Ukuran | Per lembar | Dipakai untuk |
 |---|---|---|---|
-| **Strip 100 × 25** | 100 × 25 mm | 20 | Strip rak baku: lokasi final, nama barang, barcode, QR |
+| **Strip 100 × 25** | 100 × 25 mm | 20 | Strip rak baku: lokasi final, nama barang, tipe, barcode, QR |
 | Strip 100 × 38 | 100 × 38 mm | 14 | Strip yang juga memuat SKU dan qty |
 | Kartu bin 100 × 50 | 100 × 50 mm | 10 | Rak picking yang sering di-scan |
 | Strip 75 × 25 | 75 × 25 mm | 20 | Rak sempit |
@@ -572,8 +579,12 @@ Rinciannya ada di `uji/README.md`.
 |---|---|
 | Buka `index.html` tanpa internet, semua fitur jalan | lolos — 0 permintaan jaringan |
 | Impor `contoh/Format_Label_Dus.xlsx` | 60 baris; `46126` → `14-04-2026`; `SKU/Kode` → Kode; `Nama Barang` → SKU |
-| Bolak-balik ekspor → impor | 21/21 kolom kembali, tiap sel sama persis |
-| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 21/21 kolom dikenali |
+| Bolak-balik ekspor → impor | 25/25 kolom kembali, tiap sel sama persis |
+| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 25/25 kolom dikenali |
+| Workbook saran lokasi | sheet `Claude Import` terpilih di antara enam sheet |
+| `Brand`, `Tipe`, `QR Payload`, `Status Mapping` dikenali terpisah | lolos |
+| QR memakai `QR Payload` dari Excel apa adanya | lolos |
+| Baris `REVIEW TIPE` / `REVIEW BARCODE` tetap tercetak, hanya ditandai | lolos |
 | Workbook master gudang ACC | `Draft Pengelompokan` terpilih, bukan `Data Issues` |
 | `Barcode`, `Area Draft`, `Kode Golongan`, `Golongan Draft` dikenali sendiri | lolos |
 | `Prefix Lokasi` tidak pernah jadi lokasi final | lolos |

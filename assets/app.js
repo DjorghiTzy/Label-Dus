@@ -181,11 +181,15 @@
     if (filters.zona && String(r.zona) !== filters.zona) return false;
     if (filters.status && String(r.status) !== filters.status) return false;
     if (filters.q) {
-      var q = filters.q.toLowerCase(), hit = false;
-      for (var i = 0; i < D.COLUMNS.length; i++) {
-        if (String(r[D.COLUMNS[i].k] || '').toLowerCase().indexOf(q) >= 0) { hit = true; break; }
+      /* Dicocokkan per kata dan melintasi kolom, jadi "anker a2348" tetap
+         ketemu walau merek ada di kolom Brand dan tipe di kolom Tipe.
+         Seluruh kolom ikut dicari — termasuk barcode, nama, brand, tipe,
+         golongan, dan lokasi final. */
+      var kata = filters.q.toLowerCase().split(/\s+/), gabung = '', i, j;
+      for (i = 0; i < D.COLUMNS.length; i++) gabung += String(r[D.COLUMNS[i].k] || '').toLowerCase() + ' ';
+      for (j = 0; j < kata.length; j++) {
+        if (kata[j] && gabung.indexOf(kata[j]) < 0) return false;
       }
-      if (!hit) return false;
     }
     return true;
   }
@@ -772,6 +776,7 @@
   function auditRows(list) {
     var seen = {}, out = [], i, r, id;
     var noLok = 0, dupId = [], noCode = 0, dusSalah = 0, noQty = 0, prefixSaja = 0;
+    var revTipe = 0, revBarcode = 0, st;
 
     for (i = 0; i < list.length; i++) {
       r = list[i];
@@ -791,6 +796,11 @@
         if (seen[id] && dupId.indexOf(id) < 0) dupId.push(id);
         seen[id] = 1;
       }
+      /* Status mapping dari file: barisnya tetap dicetak, cuma dihitung
+         supaya ketahuan berapa yang masih perlu dicek. */
+      st = D.statusMapping ? D.statusMapping(r) : '';
+      if (st === 'tipe') revTipe++;
+      else if (st === 'barcode') revBarcode++;
       var ke = parseInt(r.dusKe, 10), tot = parseInt(r.totalDus, 10);
       if (isFinite(ke) && isFinite(tot) && ke > tot) dusSalah++;
     }
@@ -800,6 +810,8 @@
     if (dusSalah) out.push({ t: 'berat', s: dusSalah + ' baris punya Dus ke lebih besar dari Total dus.' });
     if (noLok) out.push({ t: 'berat', s: noLok + ' baris belum punya Lokasi final — labelnya dicetak bertanda "Lokasi belum diset". Isi kolom Lokasi final dulu; prefix seperti A-CHR tidak dipakai sebagai alamat rak.' });
     if (prefixSaja) out.push({ t: 'berat', s: prefixSaja + ' baris memakai prefix lokasi sebagai Lokasi final. Prefix hanya menunjukkan area dan golongan, belum rak/baris/posisi.' });
+    if (revBarcode) out.push({ t: 'berat', s: revBarcode + ' baris berstatus REVIEW BARCODE — labelnya tetap dicetak, tapi QR-nya belum final karena barcodenya belum pasti.' });
+    if (revTipe) out.push({ t: 'ringan', s: revTipe + ' baris berstatus REVIEW TIPE — tipe/model masih perlu dicek, lokasinya sendiri sudah terisi.' });
     if (noQty) out.push({ t: 'ringan', s: noQty + ' baris tanpa qty per dus.' });
     return out;
   }

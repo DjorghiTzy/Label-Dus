@@ -186,5 +186,87 @@ var palsu = D.blank(); palsu.prefix = 'A-CHR'; palsu.lokasi = 'A-CHR';
 cek('prefix yang tersalin ke kolom lokasi tetap ditolak',
     D.lokasiFinal(palsu) === '' && D.belumLokasiFinal(palsu) === true);
 
+/* =====================================================================
+   SHEET "Claude Import"
+
+   Workbook saran lokasi punya enam sheet, dan tiga di antaranya sama-sama
+   berisi daftar SKU. Yang dipakai harus sheet yang memang disiapkan untuk
+   aplikasi ini, lengkap dengan Lokasi Final dan QR Payload jadi.
+   ===================================================================== */
+console.log('\nWorkbook saran lokasi (sheet "Claude Import"):');
+
+var wbMap = XL.utils.book_new();
+
+var saran = [['SARAN LOKASI GUDANG ACC PER TIPE / MODEL'], [''], [''],
+             ['Area', 'Kode Golongan', 'Golongan', 'Brand', 'Tipe / Model', 'Jumlah SKU']];
+for (var mi = 0; mi < 300; mi++) saran.push(['A', 'CHR', 'Charger', 'Anker', 'A2348', 4]);
+XL.utils.book_append_sheet(wbMap, XL.utils.aoa_to_sheet(saran), 'Saran Per Tipe');
+
+var perSku = [['DRAFT LOKASI FINAL PER SKU - GUDANG ACC'], [''], [''],
+              ['No', 'Barcode', 'Name', 'Quantity On Hand', 'Unit', 'Area', 'Kode Golongan',
+               'Golongan', 'Brand Saran', 'Tipe Saran', 'Prefix Lokasi', 'Rak', 'Baris',
+               'Posisi', 'Lokasi Final', 'QR Payload', 'Status Stok', 'Status Mapping']];
+for (mi = 0; mi < 500; mi++) {
+  perSku.push([mi + 1, '194644167882', 'Anker Adp Fc 20W', 3, 'PCS', 'A', 'CHR', 'Charger',
+               'Anker', 'A2348', 'A-CHR', 'R01', 'B01', 'P04', 'A-CHR-R01-B01-P04',
+               '194644167882|A-CHR-R01-B01-P04', 'READY', 'DRAFT OK']);
+}
+XL.utils.book_append_sheet(wbMap, XL.utils.aoa_to_sheet(perSku), 'Lokasi Final SKU');
+
+var imp = [['DATA IMPORT UNTUK REVISI APLIKASI LABEL RAK'],
+           ['Gunakan sheet ini sebagai mapping final draft.'], [''],
+           ['Barcode', 'Name', 'Area', 'Kode Golongan', 'Golongan', 'Brand', 'Tipe',
+            'Prefix Lokasi', 'Lokasi Final', 'QR Payload', 'Status Mapping']];
+imp.push(['194644167882', 'Anker Adp Fc 20W 2Port Usb/C A2348 White', 'A', 'CHR', 'Charger',
+          'Anker', 'A2348', 'A-CHR', 'A-CHR-R01-B01-P04',
+          '194644167882|A-CHR-R01-B01-P04', 'DRAFT OK']);
+imp.push(['6953156286511', 'Baseus Car Chr A+A 30W Dual QC3.0', 'B', 'CCH', 'Car Charger',
+          'Baseus', 'Car Chr A+A 30W Dual QC3.0', 'B-CCH', 'B-CCH-R01-B01-P06',
+          '6953156286511|B-CCH-R01-B01-P06', 'REVIEW TIPE']);
+imp.push(['', 'chr inf', 'A', 'CHR', 'Charger', 'chr', 'inf', 'A-CHR',
+          'A-CHR-R01-B03-P03', '', 'REVIEW BARCODE']);
+XL.utils.book_append_sheet(wbMap, XL.utils.aoa_to_sheet(imp), 'Claude Import');
+
+var ring = [['RINGKASAN KEBUTUHAN RAK DRAFT'], [''], [''],
+            ['Area', 'Kode', 'Golongan', 'Prefix', 'Total SKU']];
+for (mi = 0; mi < 25; mi++) ring.push(['A', 'CHR', 'Charger', 'A-CHR', 40]);
+XL.utils.book_append_sheet(wbMap, XL.utils.aoa_to_sheet(ring), 'Ringkasan Area');
+
+var atur = [['ATURAN DRAFT MAPPING LOKASI GUDANG ACC'], [''],
+            ['Parameter', 'Nilai', 'Tujuan', 'Boleh Diubah?', 'Catatan', 'Contoh'],
+            ['Format Lokasi', 'AREA-KODE-Rxx-Bxx-Pxx', 'Alamat lokasi unik', 'Tidak', '', 'A-CHR-R01-B01-P01']];
+XL.utils.book_append_sheet(wbMap, XL.utils.aoa_to_sheet(atur), 'Aturan Mapping');
+
+var bufMap = XL.write(wbMap, { type: 'array', bookType: 'xlsx' });
+var resMap = D.readWorkbook(bufMap.buffer || bufMap);
+cek('sheet "Claude Import" yang dipilih', resMap.sheet === 'Claude Import', resMap.sheet);
+
+var tMap = D.matrixToTable(resMap.matrix);
+var mMap = D.guessMapping(tMap.headers);
+var kolomMap = {};
+tMap.headers.forEach(function (h, j) { if (mMap[j]) kolomMap[h] = mMap[j]; });
+
+cek('kolom "Brand" dikenali', kolomMap.Brand === 'brand', kolomMap.Brand);
+cek('kolom "Tipe" tidak jadi Varian', kolomMap.Tipe === 'tipe', kolomMap.Tipe);
+cek('kolom "QR Payload" dikenali', kolomMap['QR Payload'] === 'qrPayload', kolomMap['QR Payload']);
+cek('kolom "Status Mapping" dikenali', kolomMap['Status Mapping'] === 'statusMap', kolomMap['Status Mapping']);
+cek('Barcode tidak tertukar dengan Kode Golongan',
+    kolomMap.Barcode === 'barcode' && kolomMap['Kode Golongan'] === 'kodeGol',
+    kolomMap.Barcode + ' / ' + kolomMap['Kode Golongan']);
+
+var barisMap = D.applyMapping(tMap, mMap);
+cek('tiga baris mapping terbaca', barisMap.length === 3, barisMap.length + ' baris');
+cek('lokasi A-CHR-R01-B01-P04 terbaca benar',
+    D.lokasiFinal(barisMap[0]) === 'A-CHR-R01-B01-P04', barisMap[0].lokasi);
+cek('QR memakai payload dari Excel apa adanya',
+    D.qrPayload(barisMap[0]) === '194644167882|A-CHR-R01-B01-P04', D.qrPayload(barisMap[0]));
+cek('status DRAFT OK terbaca', D.statusMapping(barisMap[0]) === 'ok', barisMap[0].statusMap);
+cek('status REVIEW TIPE terbaca', D.statusMapping(barisMap[1]) === 'tipe', barisMap[1].statusMap);
+cek('status REVIEW BARCODE terbaca', D.statusMapping(barisMap[2]) === 'barcode', barisMap[2].statusMap);
+cek('baris REVIEW BARCODE tidak dibuang dan lokasinya tetap utuh',
+    D.lokasiFinal(barisMap[2]) === 'A-CHR-R01-B03-P03', barisMap[2].lokasi);
+cek('QR baris tanpa barcode jatuh ke lokasi final, bukan prefix',
+    D.qrPayload(barisMap[2]) === 'A-CHR-R01-B03-P03', D.qrPayload(barisMap[2]));
+
 console.log('\ngagal: ' + gagal);
 process.exit(gagal ? 1 : 0);

@@ -296,10 +296,27 @@
   min-width:0;
 }
 .lbl-rak100 .r-meta span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lbl-rak100 .r-meta .tipe{ font-weight:700; flex:0 1 auto; }
 .lbl-rak100 .r-meta .bcno{ font-family:var(--mono); letter-spacing:.06em; flex:0 1 auto; }
 .lbl-rak100 .r-meta .gol{
   font-weight:700; letter-spacing:.08em; text-transform:uppercase; flex:none;
   margin-left:auto;
+}
+/* Tanda dari kolom Status Mapping. Barisnya tetap dicetak — tandanya
+   hanya memberi tahu apa yang masih perlu dicek sebelum ditempel. */
+.lbl-rak100 .r-meta .r-tanda{
+  flex:none; margin-left:auto;
+  background:#000; color:#fff; border-radius:.8mm;
+  padding:.2mm 1mm; font-weight:700; letter-spacing:.04em;
+  text-transform:uppercase; font-size:calc(2.2mm * var(--k));
+}
+.lbl-rak100 .r-meta .r-tanda.halus{
+  background:transparent; color:#000;
+  box-shadow:inset 0 0 0 0.2mm #000;
+}
+.sheet.ink .lbl-rak100 .r-meta .r-tanda{
+  background:transparent; color:#000;
+  box-shadow:inset 0 0 0 0.25mm #000;
 }
 
 .lbl-rak100 .r-side{

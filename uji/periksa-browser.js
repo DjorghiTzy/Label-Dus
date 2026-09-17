@@ -504,7 +504,7 @@ function cek(nama, syarat, tambahan) {
       return page.click('[data-fam="rak"]')
         .then(function () { return page.waitForTimeout(400); })
         .then(function () { return page.inputValue('#inQRPattern'); })
-        .then(function (v) { cek('label rak memakai QR barcode + lokasi', v === '{barcode}|{lokasi}', v); })
+        .then(function (v) { cek('label rak memakai QR payload', v === '{qrPayload}', v); })
         .then(function () { return page.click('[data-fam="dus"]'); })
         .then(function () { return page.waitForTimeout(400); })
         .then(function () { return page.inputValue('#inQRPattern'); })
@@ -535,27 +535,43 @@ function cek(nama, syarat, tambahan) {
                ini tidak bergantung pada data apa yang sedang dimuat. */
             var tpl = T.byKey('rak100');
             var o = { cw: 100, ch: 25, k: 1, qr: true, barcode: false, meta: false,
-                      qrPattern: '{barcode}|{lokasi}' };
+                      qrPattern: '{qrPayload}' };
             var kotak = document.createElement('div');
             kotak.innerHTML = tpl.render(acc, o) + tpl.render(kosong, o);
             var teks = [kotak.textContent];
+
+            /* status mapping: baris review tetap dirender, hanya ditandai */
+            var revT = D.blank(), revB = D.blank();
+            revT.lokasi = 'B-CCH-R01-B01-P06'; revT.sku = 'Baseus Car Chr A+A 30W';
+            revT.tipe = 'Car Chr A+A 30W Dual QC3.0'; revT.barcode = '6953156286511';
+            revT.statusMap = 'REVIEW TIPE';
+            revB.lokasi = 'A-CHR-R01-B03-P03'; revB.sku = 'chr inf';
+            revB.statusMap = 'REVIEW BARCODE';
+            var kotak2 = document.createElement('div');
+            kotak2.innerHTML = tpl.render(revT, o) + tpl.render(revB, o);
 
             return {
               qr: T.qrText(acc, '{barcode}|{lokasi}'),
               lokasiFinal: D.lokasiFinal(acc),
               prefixBukanLokasi: D.lokasiFinal(palsu),
               kosongBelum: D.belumLokasiFinal(kosong),
-              adaLokasiBesar: /A-CHR-R01-B01-P01/.test(teks.join(' ')),
+              adaLokasiBesar: /A-CHR-R01-B01-P04/.test(teks.join(' ')),
               adaNama: /Anker Adp Fc 20W/.test(teks.join(' ')),
               adaBarcode: /194644167882/.test(teks.join(' ')),
-              adaPeringatan: /Lokasi belum diset/i.test(teks.join(' '))
+              adaPeringatan: /Lokasi belum diset/i.test(teks.join(' ')),
+              adaTipe: /A2348/.test(teks.join(' ')),
+              qrPakaiPayload: T.qrText(acc, '{qrPayload}'),
+              revTampil: /B-CCH-R01-B01-P06/.test(kotak2.textContent) &&
+                         /A-CHR-R01-B03-P03/.test(kotak2.textContent),
+              revTandaTipe: /Cek tipe/i.test(kotak2.textContent),
+              revTandaBarcode: /QR belum final/i.test(kotak2.textContent)
             };
           });
         })
         .then(function (r) {
           cek('QR rak berisi barcode|lokasi final',
-              r.qr === '194644167882|A-CHR-R01-B01-P01', r.qr);
-          cek('lokasi final terbaca utuh', r.lokasiFinal === 'A-CHR-R01-B01-P01', r.lokasiFinal);
+              r.qr === '194644167882|A-CHR-R01-B01-P04', r.qr);
+          cek('lokasi final terbaca utuh', r.lokasiFinal === 'A-CHR-R01-B01-P04', r.lokasiFinal);
           cek('prefix A-CHR tidak dianggap lokasi final', r.prefixBukanLokasi === '',
               JSON.stringify(r.prefixBukanLokasi));
           cek('baris tanpa lokasi ditandai belum final', r.kosongBelum === true);
@@ -563,6 +579,12 @@ function cek(nama, syarat, tambahan) {
           cek('nama barang tampil di label', r.adaNama === true);
           cek('barcode tampil di label', r.adaBarcode === true);
           cek('label tanpa lokasi final diberi peringatan', r.adaPeringatan === true);
+          cek('tipe/model tampil di label', r.adaTipe === true);
+          cek('QR memakai QR Payload dari file mapping',
+              r.qrPakaiPayload === '194644167882|A-CHR-R01-B01-P04', r.qrPakaiPayload);
+          cek('baris REVIEW tetap tercetak, tidak dibuang', r.revTampil === true);
+          cek('REVIEW TIPE diberi tanda ringan', r.revTandaTipe === true);
+          cek('REVIEW BARCODE diberi tanda QR belum final', r.revTandaBarcode === true);
         });
     })
 

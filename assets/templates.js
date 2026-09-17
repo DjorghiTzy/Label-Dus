@@ -107,6 +107,8 @@
          kosong — QR tidak pernah berisi prefix yang menyesatkan. */
       if (k === 'lokasi') return D.lokasiFinal ? D.lokasiFinal(row) : String(row.lokasi || '');
       if (k === 'barcode') return String(row.barcode || '');
+      /* Kolom QR Payload dari file mapping dipakai apa adanya. */
+      if (k === 'qrPayload') return D.qrPayload ? D.qrPayload(row) : String(row.qrPayload || '');
       return row[k] == null ? '' : String(row[k]);
     }).replace(/\|{2,}/g, '|').replace(/^\||\|$/g, '');
   }
@@ -172,19 +174,29 @@
     var belum = !lok;
     var useQr = o.qr && qrOK;
 
-    /* Urutan baca di lorong: lokasi dulu, baru nama barang, baru barcode.
-       Ukuran puncak; app.js menyusutkan atau memecah jadi dua baris. */
+    /* Urutan baca di lorong: lokasi dulu, baru nama barang, baru tipe dan
+       barcode. Ukuran puncak; app.js menyusutkan atau memecah dua baris. */
     var fs = 11 * o.k;
 
     var nama = String(row.sku || '').trim() || String(row.varian || '').trim();
     var kode = String(row.barcode || '').trim();
+    var tipe = String(row.tipe || '').trim();
+    var st = D.statusMapping ? D.statusMapping(row) : '';
 
-    /* Baris kecil paling bawah: barcode, lalu kode golongan kalau ada.
-       Kode golongan sengaja terakhir — informasi tambahan, bukan utama. */
+    /* Baris kecil paling bawah. Tipe/model didahulukan karena itu yang
+       dipakai orang gudang untuk membedakan barang yang mirip; kode
+       golongan terakhir, sekadar pelengkap. */
     var kecil = [];
+    if (tipe) kecil.push('<span class="tipe">' + esc(tipe) + '</span>');
     if (kode) kecil.push('<span class="bcno">' + esc(kode) + '</span>');
-    if (row.kodeGol) kecil.push('<span class="gol">' + esc(row.kodeGol) + '</span>');
-    if (!kode && row.qty) kecil.push('<span class="gol">' + esc(row.qty) + '</span>');
+    if (!kode && !tipe && row.qty) kecil.push('<span class="bcno">' + esc(row.qty) + '</span>');
+    /* Baris berstatus review tetap tercetak — hanya ditandai. */
+    var tanda = st === 'barcode' ? '<span class="r-tanda">QR belum final</span>'
+              : st === 'tipe' ? '<span class="r-tanda halus">Cek tipe</span>' : '';
+    if (tanda) kecil.push(tanda);
+    /* Kode golongan paling akhir dalam urutan penting, jadi ia yang
+       mengalah begitu ada tanda status — barisnya cuma selebar itu. */
+    if (row.kodeGol && !tanda) kecil.push('<span class="gol">' + esc(row.kodeGol) + '</span>');
 
     /* Pita kiri memuat area kalau ada, kalau tidak zona. */
     var pita = String(row.area || '').trim() || String(row.zona || '').trim();
@@ -829,7 +841,7 @@
       desc: 'Strip rak baku 10 × 2,5 cm. Kode lokasi terbaca dari 3 meter. 20 label per lembar A4.',
       paper: 'a4', orient: 'portrait', cols: 2, rows: 10,
       cellW: 100, cellH: 25, margin: 4, gap: 2,
-      opts: { qr: true, barcode: false, meta: false, qrPattern: '{barcode}|{lokasi}' },
+      opts: { qr: true, barcode: false, meta: false, qrPattern: '{qrPayload}' },
       mini: [2, 10], render: renderRak100
     },
 

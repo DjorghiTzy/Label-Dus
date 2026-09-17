@@ -18,6 +18,8 @@
     { k: 'kode',     t: 'Kode',        w: 92,  cls: 'code' },
     { k: 'sku',      t: 'SKU',         w: 96,  cls: 'code' },
     { k: 'barcode',  t: 'Barcode',     w: 116, cls: 'code' },
+    { k: 'brand',    t: 'Brand',       w: 96 },
+    { k: 'tipe',     t: 'Tipe / Model', w: 116 },
     { k: 'varian',   t: 'Varian',      w: 104 },
     { k: 'qty',      t: 'Qty per dus', w: 98 },
     { k: 'kodeDus',  t: 'Kode dus',    w: 100, cls: 'code' },
@@ -33,6 +35,10 @@
     { k: 'area',     t: 'Area',        w: 72 },
     { k: 'kodeGol',  t: 'Kode golongan', w: 100, cls: 'code' },
     { k: 'golongan', t: 'Golongan',    w: 110 },
+    /* Isi QR apa adanya dari file mapping. Kalau ada, dipakai langsung —
+       aplikasi tidak menyusun ulang payload-nya. */
+    { k: 'qrPayload', t: 'QR Payload',  w: 190, cls: 'code' },
+    { k: 'statusMap', t: 'Status Mapping', w: 120 },
     { k: 'zona',     t: 'Zona',        w: 92,  list: 'dlZona' },
     { k: 'status',   t: 'Status',      w: 96,  list: 'dlStatus' },
     { k: 'pic',      t: 'PIC',         w: 100 },
@@ -42,8 +48,8 @@
   /* Kolom yang dianggap "penting". Baris yang seluruh kolom pentingnya
      kosong dibuang saat impor — di file lama ada puluhan baris ekor
      yang hanya berisi zona/status/PIC. */
-  var PENTING = ['kode', 'sku', 'barcode', 'varian', 'qty', 'kodeDus', 'totalDus', 'lokasi',
-                 'prefix', 'grn', 'supplier', 'tanggal'];
+  var PENTING = ['kode', 'sku', 'barcode', 'brand', 'tipe', 'varian', 'qty', 'kodeDus',
+                 'totalDus', 'lokasi', 'prefix', 'grn', 'supplier', 'tanggal'];
 
   /* ------------------------------------------------------------------
      ALIAS NAMA KOLOM
@@ -76,7 +82,19 @@
     namasku: 'sku',
 
     varian: 'varian', warna: 'varian', varianwarna: 'varian', warnavarian: 'varian',
-    variant: 'varian', color: 'varian', tipe: 'varian',
+    variant: 'varian', color: 'varian',
+
+    /* Brand dan tipe/model berdiri sendiri. "Tipe" dulu jatuh ke Varian;
+       di mapping gudang ACC keduanya kolom yang berbeda. */
+    brand: 'brand', merk: 'brand', merek: 'brand', brandsaran: 'brand', namabrand: 'brand',
+    tipe: 'tipe', tipemodel: 'tipe', model: 'tipe', type: 'tipe', tipesaran: 'tipe',
+    tipebarang: 'tipe', modelbarang: 'tipe',
+
+    qrpayload: 'qrPayload', payloadqr: 'qrPayload', isiqr: 'qrPayload', qrtext: 'qrPayload',
+    qrdata: 'qrPayload',
+
+    statusmapping: 'statusMap', mappingstatus: 'statusMap', statusmap: 'statusMap',
+    statuslokasi: 'statusMap',
 
     qty: 'qty', qtyperdus: 'qty', qtydus: 'qty', isidus: 'qty', isiperdus: 'qty',
     jumlahperdus: 'qty', jumlah: 'qty', isi: 'qty', quantity: 'qty',
@@ -166,6 +184,31 @@
   }
 
   function belumLokasiFinal(row) { return !lokasiFinal(row); }
+
+  /* Isi QR. Kalau file mapping sudah menyediakan QR Payload, itulah yang
+     dipakai apa adanya — aplikasi tidak menyusun ulang. Kalau belum ada,
+     barulah dirakit dari barcode + lokasi final. */
+  function qrPayload(row) {
+    if (!row) return '';
+    var p = String(row.qrPayload || '').trim();
+    if (p) return p;
+    var bc = String(row.barcode || '').trim();
+    var lok = lokasiFinal(row);
+    if (bc && lok) return bc + '|' + lok;
+    return bc || lok;
+  }
+
+  /* Status mapping dari file: DRAFT OK / REVIEW TIPE / REVIEW BARCODE.
+     Baris berstatus review TIDAK dibuang — tetap tampil dan tetap bisa
+     dicetak, hanya diberi tanda supaya ketahuan sebelum ditempel. */
+  function statusMapping(row) {
+    var v = norm(row && row.statusMap);
+    if (!v) return '';
+    if (v.indexOf('reviewbarcode') >= 0 || (v.indexOf('review') >= 0 && v.indexOf('barcode') >= 0)) return 'barcode';
+    if (v.indexOf('reviewtipe') >= 0 || (v.indexOf('review') >= 0 && v.indexOf('tipe') >= 0)) return 'tipe';
+    if (v.indexOf('draftok') >= 0 || v.indexOf('ok') === 0) return 'ok';
+    return 'lain';
+  }
 
   /* ------------------------------------------------------------------
      TANGGAL
@@ -461,6 +504,12 @@
   /* Nama yang biasanya dipakai untuk sheet SKU utama. */
   var MASTER_SHEET = /draft\s*pengelompokan|pengelompokan|master|daftar\s*sku|sku|barang|item|produk|data/i;
 
+  /* Sheet yang memang disiapkan untuk aplikasi ini. Kalau ada, itulah
+     yang dipakai — workbook mapping gudang ACC punya beberapa sheet yang
+     sama-sama berisi daftar SKU (Saran Per Tipe, Lokasi Final SKU), dan
+     hanya satu di antaranya yang kolomnya sudah dirapikan untuk diimpor. */
+  var IMPORT_SHEET = /claude\s*import|import\s*aplikasi|untuk\s*aplikasi/i;
+
   /* Nilai satu sheet dilihat dari isinya, bukan namanya:
      berapa banyak judul kolom yang dikenali, dan berapa baris datanya. */
   function nilaiSheet(matrix) {
@@ -489,7 +538,8 @@
   function skorSheet(nama, n) {
     if (!n.isi) return -1000;                       /* kosong, tidak berguna */
     var sk = n.kenal * 10 + Math.min(n.isi, 100) * 0.4 + Math.min(n.kolom, 20) * 0.2;
-    if (/draft\s*pengelompokan/i.test(nama)) sk += 18;
+    if (IMPORT_SHEET.test(nama)) sk += 120;
+    else if (/draft\s*pengelompokan/i.test(nama)) sk += 18;
     else if (MASTER_SHEET.test(nama)) sk += 6;
     if (SIDE_SHEET.test(nama)) sk -= 25;
     if (BAD_SHEET.test(nama)) sk -= 60;
@@ -501,6 +551,7 @@
     var cand = [], i;
     for (i = 0; i < names.length; i++) if (!BAD_SHEET.test(names[i]) && !SIDE_SHEET.test(names[i])) cand.push(names[i]);
     if (!cand.length) cand = names.slice(0);
+    for (i = 0; i < cand.length; i++) if (IMPORT_SHEET.test(cand[i])) return cand[i];
     for (i = 0; i < cand.length; i++) if (MASTER_SHEET.test(cand[i])) return cand[i];
     return cand[0];
   }
@@ -747,38 +798,40 @@
      status, barcode, area, kode golongan, golongan, prefix lokasi */
   var SAMPLE = [
     ['1061', 'MC01', 'WHITE',  '25 BOX',  'MC01-1W', 1, 1, 'G2-F2-S03', 'HIJAU',  'READY',
-      '8991002101061', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB'],
+      '8991002101061', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB', '', 'MC01', '', 'DRAFT OK'],
     ['1061', 'MC01', 'BLACK',  '25 BOX',  'MC01-1B', 1, 2, 'G2-F2-S04', 'HIJAU',  'READY',
-      '8991002101062', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB'],
+      '8991002101062', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB', '', 'MC01', '', 'DRAFT OK'],
     ['1062', 'MC02', 'WHITE',  '113 PCS', 'MC02-1W', 1, 4, 'G2-F3-S01', 'KUNING', 'PENDING',
-      '8991002101070', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB'],
+      '8991002101070', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB', '', 'MC02', '', 'DRAFT OK'],
     ['1062', 'MC02', 'WHITE',  '113 PCS', 'MC02-2W', 2, 4, 'G2-F3-S01', 'KUNING', 'PENDING',
-      '8991002101070', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB'],
+      '8991002101070', 'G2', 'MCB', 'Mug Ceramic', 'G2-MCB', '', 'MC02', '', 'DRAFT OK'],
     ['1071', 'TP18', 'NATURAL', '18 TPL', 'TP18-1N', 1, 3, 'G1-A1-S07', 'HIJAU',  'READY',
-      '8991002101087', 'G1', 'TPL', 'Tempat Pensil', 'G1-TPL'],
+      '8991002101087', 'G1', 'TPL', 'Tempat Pensil', 'G1-TPL', '', 'TP18', '', 'DRAFT OK'],
     ['1071', 'TP18', 'NATURAL', '18 TPL', 'TP18-2N', 2, 3, 'G1-A1-S08', 'HIJAU',  'READY',
-      '8991002101087', 'G1', 'TPL', 'Tempat Pensil', 'G1-TPL'],
+      '8991002101087', 'G1', 'TPL', 'Tempat Pensil', 'G1-TPL', '', 'TP18', '', 'DRAFT OK'],
     /* dua baris ini sengaja belum punya lokasi final: labelnya harus
        tercetak bertanda "Lokasi belum diset", bukan memakai prefiksnya */
     ['1088', 'KB44', 'BIRU',   '40 PCS',  'KB44-1B', 1, 2, '',          'NEW',    'NEW',
-      '8991002101094', 'G4', 'KBL', 'Kabel', 'G4-KBL'],
+      '8991002101094', 'G4', 'KBL', 'Kabel', 'G4-KBL', '', 'KB44', '', ''],
     ['1088', 'KB44', 'BIRU',   '40 PCS',  'KB44-2B', 2, 2, '',          'NEW',    'NEW',
-      '8991002101094', 'G4', 'KBL', 'Kabel', 'G4-KBL'],
+      '8991002101094', 'G4', 'KBL', 'Kabel', 'G4-KBL', '', 'KB44', '', ''],
     ['1093', 'RS07', 'MERAH',  '60 PCS',  'RS07-1M', 1, 1, 'G3-C2-S11', 'MERAH',  'RUSAK',
-      '8991002101100', 'G3', 'RSK', 'Rak Susun', 'G3-RSK'],
+      '8991002101100', 'G3', 'RSK', 'Rak Susun', 'G3-RSK', '', 'RS07', '', 'DRAFT OK'],
     ['1101', 'GL22', 'CLEAR',  '12 SET',  'GL22-1C', 1, 2, 'G1-B4-S02', 'HOLD',   'HOLD',
-      '8991002101117', 'G1', 'GLS', 'Gelas', 'G1-GLS'],
+      '8991002101117', 'G1', 'GLS', 'Gelas', 'G1-GLS', '', 'GL22', '', 'REVIEW TIPE'],
     ['1101', 'GL22', 'CLEAR',  '12 SET',  'GL22-2C', 2, 2, 'G1-B4-S02', 'HOLD',   'HOLD',
-      '8991002101117', 'G1', 'GLS', 'Gelas', 'G1-GLS'],
+      '8991002101117', 'G1', 'GLS', 'Gelas', 'G1-GLS', '', 'GL22', '', 'REVIEW TIPE'],
     ['1115', 'ND09', 'GREY',   '96 PCS',  'ND09-1G', 1, 1, 'G4-D1-S05', 'HIJAU',  'READY',
-      '8991002101124', 'G4', 'NDL', 'Nampan Dulang', 'G4-NDL'],
+      '8991002101124', 'G4', 'NDL', 'Nampan Dulang', 'G4-NDL', '', 'ND09', '', 'DRAFT OK'],
     /* contoh gaya gudang ACC: lokasi final lengkap A-CHR-R01-B01-P01 */
     ['A2348', 'Anker Adp Fc 20W 2Port Usb/C A2348 White', '', '1 PCS', '', '', '',
-      'A-CHR-R01-B01-P01', 'HIJAU', 'READY',
-      '194644167882', 'A', 'CHR', 'Charger', 'A-CHR'],
+      'A-CHR-R01-B01-P04', 'HIJAU', 'READY',
+      '194644167882', 'A', 'CHR', 'Charger', 'A-CHR',
+      'Anker', 'A2348', '194644167882|A-CHR-R01-B01-P04', 'DRAFT OK'],
     ['A2637', 'Anker Powerline III Usb-C 1.8M Black', '', '1 PCS', '', '', '',
       'A-KBL-R02-B03-P05', 'HIJAU', 'READY',
-      '194644072148', 'A', 'KBL', 'Kabel', 'A-KBL']
+      '194644072148', 'A', 'KBL', 'Kabel', 'A-KBL',
+      'Anker', 'A8862', '194644072148|A-KBL-R02-B03-P05', 'REVIEW BARCODE']
   ];
 
   function sampleRows() {
@@ -797,6 +850,7 @@
       r.lokasi = s[7]; r.zona = s[8]; r.status = s[9];
       r.barcode = s[10]; r.area = s[11]; r.kodeGol = s[12];
       r.golongan = s[13]; r.prefix = s[14];
+      r.brand = s[15]; r.tipe = s[16]; r.qrPayload = s[17]; r.statusMap = s[18];
       r.pic = 'MEEPLUS';
       out.push(r);
     }
@@ -837,6 +891,8 @@
     pickSheetName: pickSheetName,
     lokasiFinal: lokasiFinal,
     belumLokasiFinal: belumLokasiFinal,
+    qrPayload: qrPayload,
+    statusMapping: statusMapping,
     parseDelimited: parseDelimited,
     matrixToTable: matrixToTable,
     guessMapping: guessMapping,
