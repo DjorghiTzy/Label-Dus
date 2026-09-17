@@ -695,6 +695,13 @@
    ===================================================================== */
 #paper{ display:none; margin:0; padding:0; }
 
+/* Cadangan: app.js menulis ulang @page mengikuti ukuran kertas yang dipilih,
+   tetapi kalau seseorang menekan Ctrl+P sebelum pratinjau sempat dibangun,
+   aturan ini sudah memastikan margin halaman nol. Margin nol membuat sisa
+   ruang untuk tulisan tambahan browser (alamat, tanggal, nomor halaman)
+   menjadi nol juga. */
+@page{ margin:0; }
+
 @media print{
   html,body{
     height:auto !important;

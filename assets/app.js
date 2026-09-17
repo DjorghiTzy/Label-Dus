@@ -738,6 +738,34 @@
   });
   on(window, 'afterprint', function () { restoreFromPaper(); });
 
+  /* ---- judul dokumen saat mencetak ----
+     Browser menggambar sendiri baris kecil di tepi kertas: alamat halaman,
+     tanggal, nomor halaman, dan judul dokumen. Hanya judul yang bisa
+     dikendalikan dari sini — dikosongkan sebentar selagi mencetak, lalu
+     dikembalikan. Sisanya (alamat dan nomor halaman) hanya hilang kalau
+     "Header dan footer" di dialog printer dimatikan, dan itulah yang
+     diingatkan di panel cetak serta di ringkasan sebelum mencetak. */
+  var judulAsli = null, judulTimer = 0;
+
+  function judulKosongkan() {
+    if (judulAsli === null) judulAsli = document.title;
+    try { document.title = ''; } catch (e) {}
+    /* Kalau afterprint tidak pernah datang (sebagian browser lama), judul
+       tetap kembali sendiri supaya tab tidak tinggal kosong. */
+    if (judulTimer) clearTimeout(judulTimer);
+    judulTimer = setTimeout(judulKembalikan, 60000);
+  }
+
+  function judulKembalikan() {
+    if (judulTimer) { clearTimeout(judulTimer); judulTimer = 0; }
+    if (judulAsli === null) return;
+    try { document.title = judulAsli; } catch (e) {}
+    judulAsli = null;
+  }
+
+  on(window, 'beforeprint', judulKosongkan);
+  on(window, 'afterprint', judulKembalikan);
+
   /* ---- periksa data sebelum cetak ----
      Mencetak 60 label lalu baru sadar setengahnya tanpa lokasi itu mahal:
      kertas, tinta, dan waktu tempel. Jadi diperiksa dulu. */
@@ -796,6 +824,9 @@
         '. Kosongkan kotak "Cetak lembar" di panel kiri untuk mencetak semuanya.</div>' : '') +
       auditHTML(printableRows()) +
       '<div class="sumtip"><b>Sebelum menekan Print, pastikan:</b><ul>' +
+      '<li><b>Header dan footer</b> / <b>Headers and footers</b> — ' +
+      'hilangkan centangnya, supaya alamat halaman, tanggal, dan nomor ' +
+      'halaman tidak ikut tercetak</li>' +
       '<li>Margin: <b>None</b> / <b>Tidak ada</b></li>' +
       '<li>Skala: <b>100%</b> — bukan "Fit to page"</li>' +
       '<li><b>Background graphics</b> dicentang</li>' +
