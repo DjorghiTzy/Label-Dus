@@ -308,18 +308,54 @@
     return r;
   }
 
+  /* Pencarian katalog.
+
+     Dicocokkan per kata, bukan sebagai satu potongan utuh: "ugreen hub"
+     harus menemukan "Ugreen Adapter Hub Usb C 7In1" walaupun kedua kata
+     itu tidak berdampingan. Pencocokan potongan utuh memberi nol hasil
+     untuk urutan kata yang wajar diketik orang.
+
+     Hasilnya diurutkan supaya yang paling mungkin dimaksud muncul
+     duluan — mengetik "899" mendapat 402 produk, jadi urutan menentukan
+     apakah daftarnya berguna atau tidak. */
   function cariProduk(q, kunci, batas) {
-    var list = katalog(kunci), out = [], i, n = 0;
-    q = String(q || '').trim().toLowerCase();
+    var list = katalog(kunci), i, j;
     batas = batas || 200;
-    for (i = 0; i < list.length && n < batas; i++) {
-      if (!q ||
-          String(list[i][0]).toLowerCase().indexOf(q) >= 0 ||
-          String(list[i][1]).toLowerCase().indexOf(q) >= 0) {
-        out.push(list[i]); n++;
-      }
+    q = String(q || '').trim().toLowerCase();
+
+    if (!q) {
+      return { hasil: list.slice(0, batas), total: list.length, cocok: list.length };
     }
-    return { hasil: out, total: list.length };
+
+    var kata = q.split(/\s+/), cocok = [];
+    for (i = 0; i < list.length; i++) {
+      var bar = String(list[i][0]).toLowerCase();
+      var nama = String(list[i][1]).toLowerCase();
+      var gabung = bar + ' ' + nama;
+      var semua = true;
+      for (j = 0; j < kata.length; j++) {
+        if (gabung.indexOf(kata[j]) < 0) { semua = false; break; }
+      }
+      if (!semua) continue;
+
+      /* peringkat berdasarkan kata pertama */
+      var k0 = kata[0], nilai;
+      if (bar.indexOf(k0) === 0) nilai = 0;
+      else if (nama.indexOf(k0) === 0) nilai = 1;
+      else if (bar.indexOf(k0) >= 0) nilai = 2;
+      else if ((' ' + nama).indexOf(' ' + k0) >= 0) nilai = 3;   /* awal sebuah kata */
+      else nilai = 4;
+      cocok.push([nilai, list[i][1], list[i]]);
+    }
+
+    cocok.sort(function (a, b) {
+      if (a[0] !== b[0]) return a[0] - b[0];
+      return a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0;
+    });
+
+    var out = [];
+    for (i = 0; i < cocok.length && i < batas; i++) out.push(cocok[i][2]);
+    return { hasil: out, total: list.length, cocok: cocok.length };
   }
 
   function produkByBarcode(kode, kunci) {

@@ -32,9 +32,28 @@ sedang aktif. Ketik nama produk atau barcode, centang yang dibutuhkan,
 lalu **Tambah ke daftar** — semuanya langsung jadi baris label lengkap
 dengan nama dan stoknya.
 
-Cara cepat lain: ketik saja barcode di kolom **Kode**. Kalau ada di
-katalog, nama produk dan qty terisi sendiri — tapi hanya kolom yang masih
-kosong, supaya yang sudah Anda ketik tidak tertimpa.
+### Rekomendasi sambil mengetik
+
+Cara paling cepat: ketik saja di kolom **Kode** atau **Varian**. Mulai
+dari dua huruf, daftar rekomendasi langsung muncul di bawah selnya —
+tidak perlu membuka dialog apa pun.
+
+- Ketik `899` → sepuluh teratas dari 402 produk yang cocok
+- Ketik `ugreen hub` → ketemu walaupun kedua kata itu tidak berdampingan
+  di nama produknya
+- Bagian yang cocok ditebalkan, lengkap dengan stok dan satuannya
+
+| Tombol | Hasil |
+|---|---|
+| **↓ / ↑** | Pindah antar rekomendasi |
+| **Enter** | Ambil yang sedang disorot |
+| **Esc** | Tutup daftarnya |
+| Klik | Ambil yang diklik |
+
+Memilih rekomendasi mengisi Kode, nama produk, dan qty sekaligus. Kalau
+Anda hanya mengetik barcode lengkap lalu pindah sel, pengisian tetap
+jalan — tapi hanya ke kolom yang masih kosong, supaya yang sudah diketik
+sendiri tidak tertimpa.
 
 Katalognya ada di `data/katalog-cv.js` dan `data/katalog-ol.js`, dimuat
 lewat `<script>` biasa — bukan `fetch`, karena `fetch` diblokir saat
@@ -466,7 +485,16 @@ dicatat di sini:
 22. **Katalog produk dimuat lewat `<script>`, bukan `fetch`.** Di
    `file://`, `fetch` diblokir aturan asal-usul. Data ditulis sebagai
    berkas JavaScript yang menempelkan dirinya ke `window.LG.katalog`.
-23. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+23. **Katalog dicari per kata, bukan sebagai potongan utuh.** Mengetik
+   "ugreen hub" dulu memberi nol hasil, padahal ada empat produk yang
+   cocok — kedua kata itu hanya tidak berdampingan. Hasilnya juga
+   diperingkat, karena "899" saja cocok dengan 402 produk dan urutanlah
+   yang menentukan daftarnya berguna atau tidak.
+24. **Daftar rekomendasi ikut bergeser saat tabel digulir, bukan
+   ditutup.** Memfokuskan sel di tabel panjang membuat tabelnya
+   menggulir sedikit — kalau gulir itu menutup daftarnya, daftarnya
+   hilang tepat pada saat dibuka.
+25. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
@@ -543,6 +571,9 @@ Rinciannya ada di `uji/README.md`.
 | Pindah basis data: datanya benar-benar terpisah | lolos |
 | Tambah produk dari katalog jadi baris label | lolos |
 | Ketik barcode mengisi nama produk otomatis | lolos |
+| Rekomendasi muncul sambil mengetik, bagian cocok ditebalkan | lolos |
+| ↓/↑ dan Enter memilih rekomendasi | lolos |
+| Pencarian per kata: "ugreen hub" ketemu 4, dulu 0 | lolos |
 | Dialog konfirmasi sendiri, bukan `window.confirm` | lolos |
 | Lokasi panjang dipatahkan dua baris, tidak menyusut jadi 3,38 mm | lolos |
 | 15 template rak: tidak ada elemen yang tumpang tindih | lolos |

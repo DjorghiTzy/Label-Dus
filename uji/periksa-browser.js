@@ -281,6 +281,79 @@ function cek(nama, syarat, tambahan) {
       .then(function (n) { cek('kembali ke CV: 60 baris tetap utuh', n === 60, n + ' baris'); });
     })
 
+    /* ---- rekomendasi produk saat mengetik ---- */
+    .then(function () {
+      console.log('\n== Rekomendasi saat mengetik ==');
+      return page.click('#btnAdd')
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () { return page.click('#gridBody tr:last-child input[data-k="kode"]'); })
+        /* "ugreen" ada di katalog CV; ADPCHR cuma ada di OL, dan
+           pemeriksaan ini berjalan saat basis data CV yang aktif */
+        .then(function () { return page.type('#gridBody tr:last-child input[data-k="kode"]', 'ugreen', { delay: 40 }); })
+        .then(function () { return page.waitForTimeout(500); })
+        .then(function () {
+          return page.evaluate(function () {
+            return { tampil: !document.getElementById('tip').hidden,
+                     n: document.querySelectorAll('#tip .tip-row').length,
+                     tebal: document.querySelectorAll('#tip mark').length };
+          });
+        })
+        .then(function (r) {
+          cek('daftar rekomendasi muncul sambil mengetik', r.tampil && r.n > 0, r.n + ' hasil');
+          cek('bagian yang cocok ditebalkan', r.tebal > 0, r.tebal + ' penanda');
+        })
+        /* panah + Enter memilih */
+        .then(function () { return page.keyboard.press('ArrowDown'); })
+        .then(function () { return page.waitForTimeout(150); })
+        .then(function () { return page.keyboard.press('Enter'); })
+        .then(function () { return page.waitForTimeout(600); })
+        .then(function () {
+          return page.evaluate(function () {
+            var tr = document.querySelector('#gridBody tr:last-child');
+            return { kode: tr.querySelector('input[data-k="kode"]').value,
+                     varian: tr.querySelector('input[data-k="varian"]').value,
+                     qty: tr.querySelector('input[data-k="qty"]').value,
+                     tertutup: document.getElementById('tip').hidden };
+          });
+        })
+        .then(function (r) {
+          cek('Enter mengambil produk yang disorot', !!r.kode, r.kode);
+          cek('nama dan qty ikut terisi', /ugreen/i.test(r.varian) && !!r.qty,
+              r.varian.slice(0, 30) + ' / ' + r.qty);
+          cek('daftar tertutup setelah dipilih', r.tertutup);
+        })
+        /* pencarian per kata, bukan potongan utuh */
+        .then(function () { return page.click('#btnAdd'); })
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () { return page.click('#gridBody tr:last-child input[data-k="varian"]'); })
+        .then(function () { return page.type('#gridBody tr:last-child input[data-k="varian"]', 'ugreen hub', { delay: 30 }); })
+        .then(function () { return page.waitForTimeout(500); })
+        .then(function () { return page.$$eval('#tip .tip-row', function (n) { return n.length; }); })
+        .then(function (n) {
+          cek('dua kata yang tidak berdampingan tetap ketemu', n > 0, n + ' hasil untuk "ugreen hub"');
+        })
+        .then(function () { return page.keyboard.press('Escape'); })
+        .then(function () { return page.waitForTimeout(200); })
+        .then(function () { return page.evaluate(function () { return document.getElementById('tip').hidden; }); })
+        .then(function (h) { cek('Escape menutup daftar', h === true); })
+        /* bersihkan baris uji sampai benar-benar kembali 60 */
+        .then(function () {
+          return page.evaluate(function () {
+            var batas = 0;
+            while (document.querySelectorAll('#gridBody tr').length > 60 && batas++ < 20) {
+              var t = document.querySelectorAll('#gridBody tr');
+              var b = t[t.length - 1].querySelector('.rowact.del');
+              if (!b) break;
+              b.click();
+            }
+            return document.querySelectorAll('#gridBody tr').length;
+          });
+        })
+        .then(function () { return page.waitForTimeout(500); })
+        .then(function () { return page.$$eval('#gridBody tr', function (n) { return n.length; }); })
+        .then(function (n) { cek('baris uji dibersihkan, kembali 60', n === 60, n + ' baris'); });
+    })
+
     /* ---- tidak ada lagi pop-up bawaan browser ---- */
     .then(function () {
       console.log('\n== Dialog konfirmasi ==');

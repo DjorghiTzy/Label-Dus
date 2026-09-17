@@ -273,6 +273,12 @@
       if (k === 'tanggal') return;                 /* diproses saat selesai mengetik */
       rows[i][k] = inp.value;
       saveSoon(); schedulePreview();
+
+      /* rekomendasi produk muncul sambil mengetik */
+      if (k === 'kode' || k === 'varian') {
+        var q = inp.value.trim();
+        if (q.length >= 2) tipBuka(inp, q); else tipTutup();
+      }
     });
 
     on(body, 'change', function (e) {
@@ -365,6 +371,16 @@
     on($('gridBody'), 'keydown', function (e) {
       var inp = e.target;
       if (!inp.getAttribute || !inp.getAttribute('data-k')) return;
+
+      /* Selama daftar rekomendasi terbuka, panah dan Enter miliknya —
+         bukan milik perpindahan antar sel. */
+      if (!$('tip').hidden && tipInput === inp) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); tipSorot(tipAktif + 1); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); tipSorot(tipAktif - 1); return; }
+        if (e.key === 'Enter' && tipAktif >= 0) { e.preventDefault(); tipPilih(tipAktif); return; }
+        if (e.key === 'Escape') { e.preventDefault(); tipTutup(); return; }
+        if (e.key === 'Tab') { tipTutup(); }
+      }
 
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -1006,6 +1022,131 @@
           D.katalog(kunci).length + ' produk di katalog.');
   }
 
+  /* ==================== REKOMENDASI SAAT MENGETIK ====================
+     Mengetik di kolom Kode atau Varian langsung memunculkan daftar
+     produk yang cocok — tidak perlu membuka dialog katalog dulu.
+     Cukup satu huruf: "899" saja sudah menyaring 402 produk jadi
+     sepuluh teratas. ==================================================== */
+  var tipHasil = [], tipAktif = -1, tipInput = null, tipBaris = -1;
+  var TIP_MAX = 10;
+
+  function tipTutup() {
+    if (tipInput) tipInput.removeAttribute('aria-expanded');
+    var tip = $('tip');
+    tip.hidden = true;
+    tip.innerHTML = '';                /* jangan sisakan hasil lama */
+    tipHasil = []; tipAktif = -1; tipInput = null; tipBaris = -1;
+  }
+
+  function tipTebal(teks, q) {
+    var t = String(teks == null ? '' : teks);
+    var kata = String(q || '').trim().toLowerCase().split(/\s+/);
+    var low = t.toLowerCase(), tandai = [];
+    for (var i = 0; i < kata.length; i++) {
+      if (!kata[i]) continue;
+      var dari = 0, at;
+      while ((at = low.indexOf(kata[i], dari)) >= 0) {
+        tandai.push([at, at + kata[i].length]);
+        dari = at + kata[i].length;
+      }
+    }
+    if (!tandai.length) return T.esc(t);
+    tandai.sort(function (a, b) { return a[0] - b[0]; });
+    var out = '', pos = 0;
+    for (i = 0; i < tandai.length; i++) {
+      if (tandai[i][0] < pos) continue;
+      out += T.esc(t.slice(pos, tandai[i][0])) + '<mark>' +
+             T.esc(t.slice(tandai[i][0], tandai[i][1])) + '</mark>';
+      pos = tandai[i][1];
+    }
+    return out + T.esc(t.slice(pos));
+  }
+
+  function tipBuka(inp, q) {
+    var res = D.cariProduk(q, D.dbGet(), TIP_MAX);
+    if (!res.hasil.length) { tipTutup(); return; }
+
+    tipHasil = res.hasil; tipAktif = -1; tipInput = inp;
+    var tr = inp.parentNode.parentNode;
+    tipBaris = parseInt(tr.getAttribute('data-i'), 10);
+
+    var h = [], i, pr;
+    for (i = 0; i < tipHasil.length; i++) {
+      pr = tipHasil[i];
+      var sat = String(pr[3] || '').trim();
+      h.push('<div class="tip-row" role="option" data-i="' + i + '">' +
+             '<span class="bar">' + tipTebal(pr[0], q) + '</span>' +
+             '<span class="nm">' + tipTebal(pr[1], q) + '</span>' +
+             '<span class="st">' + T.esc(pr[2] + (sat ? ' ' + sat : '')) + '</span></div>');
+    }
+    if (res.cocok > tipHasil.length) {
+      h.push('<div class="tip-foot">' + res.cocok + ' produk cocok — ketik lebih panjang, ' +
+             'atau pakai tombol "Cari produk" untuk melihat semuanya.</div>');
+    }
+
+    var tip = $('tip');
+    tip.innerHTML = h.join('');
+    tip.hidden = false;
+    tipPosisi();
+    inp.setAttribute('aria-expanded', 'true');
+  }
+
+  /* Menempatkan daftar di bawah sel, dibalik ke atas kalau mentok layar.
+     Dipanggil ulang saat tabel digulir — bukan ditutup. Memfokuskan sel
+     di tabel panjang membuat tabelnya ikut menggulir sedikit, dan kalau
+     gulir itu menutup daftarnya, daftarnya hilang tepat saat dibuka. */
+  function tipPosisi() {
+    var tip = $('tip');
+    if (tip.hidden || !tipInput) return;
+    var r = tipInput.getBoundingClientRect();
+    var wrap = $('tableWrap').getBoundingClientRect();
+
+    /* sel sudah tergulir keluar dari area tabel -> baru ditutup */
+    if (r.bottom < wrap.top - 2 || r.top > wrap.bottom + 2) { tipTutup(); return; }
+
+    var lebar = Math.max(r.width, 420);
+    if (lebar > window.innerWidth - 16) lebar = window.innerWidth - 16;
+    tip.style.width = lebar + 'px';
+    var kiri = Math.min(r.left, window.innerWidth - lebar - 8);
+    tip.style.left = Math.max(8, kiri) + 'px';
+
+    var tinggi = tip.offsetHeight;
+    var bawah = window.innerHeight - r.bottom;
+    if (bawah < tinggi + 12 && r.top > bawah) tip.style.top = Math.max(8, r.top - tinggi - 4) + 'px';
+    else tip.style.top = (r.bottom + 4) + 'px';
+  }
+
+  function tipSorot(n) {
+    var baris = els('#tip .tip-row');
+    if (!baris.length) return;
+    if (n < 0) n = baris.length - 1;
+    if (n >= baris.length) n = 0;
+    tipAktif = n;
+    for (var i = 0; i < baris.length; i++) {
+      baris[i].className = 'tip-row' + (i === n ? ' is-on' : '');
+    }
+    if (baris[n].scrollIntoView) baris[n].scrollIntoView({ block: 'nearest' });
+  }
+
+  /* Memilih rekomendasi mengisi seluruh kolom produk — ini pilihan
+     sadar pengguna, jadi boleh menimpa isi sebelumnya. */
+  function tipPilih(n) {
+    var pr = tipHasil[n], i = tipBaris;
+    if (!pr || !rows[i]) { tipTutup(); return; }
+    markUndo('ambil produk dari katalog');
+    rows[i].kode = String(pr[0] || '');
+    rows[i].varian = String(pr[1] || '');
+    var sat = String(pr[3] || '').trim();
+    rows[i].qty = (pr[2] || pr[2] === 0) ? (pr[2] + (sat ? ' ' + sat : '')) : '';
+    if (pr[4]) rows[i].lokasi = String(pr[4]);
+    var kolom = tipInput ? tipInput.getAttribute('data-k') : 'kode';
+    tipTutup();
+    renderTable(); schedulePreview(); doSave();
+    var lagi = el('#gridBody tr[data-i="' + i + '"] input[data-k="' + kolom + '"]');
+    if (lagi) lagi.focus();
+    toast(pr[0] + ' — ' + pr[1]);
+  }
+
   /* ========================= KATALOG PRODUK ========================= */
   var katPilih = {};
 
@@ -1046,7 +1187,8 @@
     }
     $('katBody').innerHTML = h.join('');
     $('katInfo').textContent = res.total
-      ? (q ? res.hasil.length + ' dari ' + res.total + ' produk cocok'
+      ? (q ? res.cocok + ' produk cocok' +
+             (res.hasil.length < res.cocok ? ' — menampilkan ' + res.hasil.length + ' teratas' : '')
            : res.total + ' produk di katalog ' + D.dbInfo(D.dbGet()).nama +
              (res.hasil.length < res.total ? ' — menampilkan ' + res.hasil.length + ' teratas' : ''))
       : '';
@@ -1375,6 +1517,27 @@
       if (kunci === D.dbGet()) return;
       muatDb(kunci);
     });
+
+    /* pilih rekomendasi dengan tetikus */
+    on($('tip'), 'mousedown', function (e) { e.preventDefault(); });   /* jangan lepas fokus */
+    on($('tip'), 'click', function (e) {
+      var b = e.target;
+      while (b && b !== this && !(b.getAttribute && b.getAttribute('data-i'))) b = b.parentNode;
+      if (!b || b === this) return;
+      tipPilih(parseInt(b.getAttribute('data-i'), 10));
+    });
+    on($('tip'), 'mousemove', function (e) {
+      var b = e.target;
+      while (b && b !== this && !(b.getAttribute && b.getAttribute('data-i'))) b = b.parentNode;
+      if (b && b !== this) tipSorot(parseInt(b.getAttribute('data-i'), 10));
+    });
+    /* tutup saat pindah fokus, menggulir tabel, atau ukuran jendela berubah */
+    on($('gridBody'), 'focusout', function () { setTimeout(function () {
+      var a = document.activeElement;
+      if (!a || !a.getAttribute || !a.getAttribute('data-k')) tipTutup();
+    }, 0); });
+    on($('tableWrap'), 'scroll', tipPosisi);
+    on(window, 'resize', tipTutup);
 
     on($('btnKatalog'), 'click', bukaKatalog);
     on($('katCari'), 'input', renderKatalog);
