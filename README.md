@@ -57,6 +57,21 @@ Coba dulu dengan `contoh/Format_Label_Dus.xlsx` — hasilnya 60 baris.
   `LBL-001`.
 - **Cari** dan saringan **zona** / **status** untuk mencari baris tertentu.
 - Klik langsung di sel mana pun untuk mengubah isinya.
+- **Urungkan** membatalkan tindakan terakhir yang mengubah susunan baris
+  — hapus, pecah per dus, nomori ulang, impor, sampai 25 langkah ke
+  belakang. Pintasannya **Ctrl+Z** (di luar kotak isian; di dalam kotak,
+  Ctrl+Z tetap milik browser untuk membatalkan ketikan).
+
+Mengisi banyak baris dengan papan ketik:
+
+| Tombol | Hasil |
+|---|---|
+| **Tab** / **Shift+Tab** | Pindah sel ke kanan / kiri |
+| **↓** / **↑** | Pindah baris, tetap di kolom yang sama |
+| **Enter** | Turun satu baris |
+| **Enter** di baris terakhir | Tambah baris baru, langsung siap diketik |
+| **Shift+Enter** | Naik satu baris |
+| **Esc** | Keluar dari sel |
 
 Data tersimpan sendiri di browser komputer ini. Tutup browser, buka lagi
 besok — data masih ada. **Buat cadangan `.json` secara berkala** lewat
@@ -70,6 +85,12 @@ Pindah ke tab **Template & cetak**:
 1. Pilih template di panel kiri.
 2. Periksa penghitung di atas pratinjau: berapa label, berapa lembar.
 3. Tekan **Cetak sekarang** → muncul ringkasan → **Buka dialog cetak**.
+
+Ringkasan itu juga **memeriksa datanya dulu** dan memberi tahu kalau ada
+Label ID kembar, baris tanpa kode barang, atau Dus ke yang lebih besar
+dari Total dus — lebih murah daripada baru sadar setelah 60 label
+tercetak. Baris tanpa lokasi hanya disebut sebagai catatan, karena
+kolomnya sengaja dikosongkan untuk ditulis tangan.
 
 **Di dialog printer, tiga hal ini wajib:**
 
@@ -263,6 +284,7 @@ assets/
 vendor/               pustaka lokal (lihat vendor/README.md)
 contoh/
   Format_Label_Dus.xlsx  file contoh, 60 baris
+uji/                  pemeriksaan untuk pengembang (lihat uji/README.md)
 arsip/
   label-dus-rak-versi-lama.html   versi lama satu-file, disimpan sebagai arsip
 ```
@@ -331,8 +353,41 @@ dicatat di sini:
 11. **Kolom "Diperiksa oleh" di label QC sengaja dikosongkan** walaupun
    kolom PIC ada isinya — tanda tangan pemeriksaan harus dibubuhkan di
    dus, bukan dicetak dari data.
+12. **Urungkan hanya mencatat perubahan susunan baris**, bukan setiap
+   ketikan. Di dalam kotak isian, Ctrl+Z bawaan browser sudah lebih tepat
+   dan lebih halus; mengambil alihnya justru merugikan.
+13. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+   README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
+   dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
+   supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
 
 ---
+
+## Menjalankan pemeriksaan
+
+```sh
+sh uji/jalankan.sh
+```
+
+Tiga pemeriksaan, dua di antaranya hanya butuh Node:
+
+| Perintah | Butuh | Memeriksa |
+|---|---|---|
+| `node uji/periksa-impor.js` | Node | Jalur impor Excel dari ujung ke ujung |
+| `node uji/periksa-anggaran.js` | Node | Anggaran tinggi tiap template |
+| `node uji/periksa-browser.js` | Node + Playwright | Aplikasi sungguhan di Chromium |
+
+Yang ketiga berhenti dengan pesan kalau Playwright tidak terpasang, bukan
+error. **Aplikasinya sendiri tetap tanpa pustaka apa pun** — folder `uji/`
+murni alat bantu pengembang dan tidak pernah dimuat oleh `index.html`.
+
+Yang paling berharga dari pemeriksa browser: ia menemukan **isi yang
+terpotong di dalam bagiannya sendiri**. Tiap bagian label memakai
+`overflow:hidden`, jadi teks kepanjangan hilang tanpa jejak — labelnya
+tetap terlihat rapi dan tetap lolos pemeriksaan "ada yang keluar dari
+kotak label". Satu-satunya cara menemukannya adalah membandingkan
+`scrollHeight` dengan `clientHeight` tiap bagian di browser sungguhan.
+Rinciannya ada di `uji/README.md`.
 
 ## Pemeriksaan yang sudah dijalankan
 
@@ -345,6 +400,10 @@ dicatat di sini:
 | Halaman kosong di akhir | tidak ada |
 | Halaman kalibrasi | kotak terukur 100 × 100 mm, penggaris 150 mm |
 | Data bertahan setelah browser ditutup | lolos |
+| Urungkan mengembalikan 180 baris hasil pecah per dus ke 60 | lolos |
+| Navigasi papan ketik: panah, Enter, Enter di baris terakhir | lolos |
+| Periksa data sebelum cetak menandai 5 jenis masalah | lolos |
+| `uji/periksa-browser.js` berhenti rapi tanpa Playwright | lolos, keluar dengan kode 0 |
 | Layar 390 px | semua tombol terjangkau, halaman tidak menggulir ke samping |
 | `console.error` sepanjang alur impor → edit → saring → cetak | tidak ada |
 | 28 template, isi tidak melebihi kotak label | lolos |

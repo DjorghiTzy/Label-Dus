@@ -378,6 +378,17 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .sumlist{ list-style:none; margin:0; padding:0; }
 .sumlist li{ display:flex; justify-content:space-between; gap:var(--s4); padding:7px 0; border-bottom:1px dashed var(--line); }
 .sumlist li b{ font-family:var(--mono); }
+.audit{
+  margin-top:var(--s4); padding:var(--s3);
+  background:var(--dock); border:1px solid var(--line);
+  border-left:4px solid var(--danger);
+  border-radius:var(--r-xs); font-size:var(--fs-sm);
+}
+.audit ul{ margin:var(--s2) 0 0; padding-left:18px; }
+.audit li{ margin-bottom:4px; }
+.audit li.bad{ color:var(--danger); font-weight:600; }
+.audit li.soft{ color:var(--ink-2); }
+
 .sumtip{ margin-top:var(--s4); padding:var(--s3); background:var(--hi-soft); color:var(--ink); border-left:4px solid var(--hi); border-radius:var(--r-xs); font-size:var(--fs-sm); }
 .sumtip ul{ margin:var(--s2) 0 0; padding-left:18px; }
 

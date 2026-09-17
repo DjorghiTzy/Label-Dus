@@ -46,6 +46,48 @@
     toastTimer = setTimeout(function () { t.hidden = true; }, 3200);
   }
 
+  /* ============================== URUNGKAN ==============================
+     Hanya untuk tindakan yang mengubah susunan baris — hapus, pecah per
+     dus, impor, dan sejenisnya. Mengetik di dalam sel tidak dicatat di
+     sini karena browser sudah punya urungkan sendiri di kotak isian.
+     ====================================================================== */
+  var undoStack = [];
+  var UNDO_MAX = 25;
+
+  function cloneRows(list) {
+    var out = [], i, k, c;
+    for (i = 0; i < list.length; i++) {
+      c = {};
+      for (k in list[i]) if (list[i].hasOwnProperty(k)) c[k] = list[i][k];
+      out.push(c);
+    }
+    return out;
+  }
+
+  /* Dipanggil SEBELUM baris diubah. */
+  function markUndo(label) {
+    undoStack.push({ rows: cloneRows(rows), label: label });
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    refreshUndo();
+  }
+
+  function refreshUndo() {
+    var b = $('btnUndo');
+    if (!b) return;
+    var top = undoStack[undoStack.length - 1];
+    b.disabled = !top;
+    b.title = top ? 'Urungkan: ' + top.label + ' (Ctrl+Z)' : 'Tidak ada yang bisa diurungkan';
+  }
+
+  function doUndo() {
+    var last = undoStack.pop();
+    if (!last) { toast('Tidak ada yang bisa diurungkan.'); return; }
+    rows = last.rows;
+    refreshUndo();
+    renderTable(); schedulePreview(); doSave();
+    toast('Diurungkan: ' + last.label + '.');
+  }
+
   /* =============================== SIMPAN =============================== */
   function state() { return { rows: rows, opts: opts, at: Date.now() }; }
 
@@ -258,6 +300,7 @@
       if (act !== 'dup' && act !== 'del') return;
       var tr = b.parentNode.parentNode, i = parseInt(tr.getAttribute('data-i'), 10);
       if (!rows[i]) return;
+      markUndo(act === 'dup' ? 'gandakan baris' : 'hapus baris');
       if (act === 'dup') {
         var c = {}, k;
         for (k in rows[i]) if (rows[i].hasOwnProperty(k)) c[k] = rows[i][k];
@@ -268,6 +311,50 @@
         rows.splice(i, 1);
       }
       renderTable(); schedulePreview(); doSave();
+    });
+  }
+
+  /* ---- berpindah antar sel dengan papan ketik ----
+     Mengisi 60 baris dengan Tab saja melelahkan: panah atas/bawah
+     berpindah baris pada kolom yang sama, Enter turun satu baris, dan
+     Enter di baris terakhir menambah baris baru. */
+  function moveCell(inp, dir) {
+    var tr = inp.parentNode.parentNode;
+    var k = inp.getAttribute('data-k');
+    var target = dir < 0 ? tr.previousElementSibling : tr.nextElementSibling;
+    if (!target) return null;
+    var next = target.querySelector('input[data-k="' + k + '"]');
+    if (next) { next.focus(); next.select(); }
+    return next;
+  }
+
+  function addRowAndFocus(k) {
+    markUndo('tambah baris');
+    rows.push(D.newRow(rows.length ? rows[rows.length - 1] : null));
+    D.fillMissingIds(rows);
+    renderTable(); schedulePreview(); doSave();
+    var last = el('#gridBody tr:last-child input[data-k="' + k + '"]');
+    if (last) { last.focus(); last.select(); }
+  }
+
+  function bindKeys() {
+    on($('gridBody'), 'keydown', function (e) {
+      var inp = e.target;
+      if (!inp.getAttribute || !inp.getAttribute('data-k')) return;
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) { moveCell(inp, -1); return; }
+        if (!moveCell(inp, 1)) addRowAndFocus(inp.getAttribute('data-k'));
+        return;
+      }
+      /* kolom zona dan status memakai daftar pilihan — panahnya milik
+         daftar itu, jangan diambil alih */
+      if (inp.getAttribute('list')) return;
+
+      if (e.key === 'ArrowDown') { e.preventDefault(); moveCell(inp, 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); moveCell(inp, -1); }
+      else if (e.key === 'Escape') { inp.blur(); }
     });
   }
 
@@ -490,6 +577,39 @@
   });
   on(window, 'afterprint', function () { restoreFromPaper(); });
 
+  /* ---- periksa data sebelum cetak ----
+     Mencetak 60 label lalu baru sadar setengahnya tanpa lokasi itu mahal:
+     kertas, tinta, dan waktu tempel. Jadi diperiksa dulu. */
+  function auditRows(list) {
+    var seen = {}, out = [], i, r, id;
+    var noLok = 0, dupId = [], noCode = 0, dusSalah = 0, noQty = 0;
+
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      if (!String(r.lokasi || '').trim()) noLok++;
+      if (!String(r.qty || '').trim()) noQty++;
+      /* bigCode selalu jatuh ke Label ID sebagai pilihan terakhir, jadi
+         yang diperiksa adalah ketiga kolom sumbernya — label dengan
+         angka besar berisi "LBL-007" tidak berguna di gudang. */
+      if (!String(r.kode || '').trim() && !String(r.sku || '').trim() &&
+          !String(r.kodeDus || '').trim()) noCode++;
+      id = String(r.labelId || '').trim();
+      if (id) {
+        if (seen[id] && dupId.indexOf(id) < 0) dupId.push(id);
+        seen[id] = 1;
+      }
+      var ke = parseInt(r.dusKe, 10), tot = parseInt(r.totalDus, 10);
+      if (isFinite(ke) && isFinite(tot) && ke > tot) dusSalah++;
+    }
+
+    if (noCode) out.push({ t: 'berat', s: noCode + ' baris tanpa Kode, SKU, maupun Kode dus — angka besar di labelnya cuma berisi Label ID.' });
+    if (dupId.length) out.push({ t: 'berat', s: dupId.length + ' Label ID kembar (' + dupId.slice(0, 3).join(', ') + (dupId.length > 3 ? ', …' : '') + '). Tekan "Nomori ulang" untuk membetulkan.' });
+    if (dusSalah) out.push({ t: 'berat', s: dusSalah + ' baris punya Dus ke lebih besar dari Total dus.' });
+    if (noLok) out.push({ t: 'ringan', s: noLok + ' baris tanpa lokasi — kolomnya tercetak kosong untuk ditulis tangan.' });
+    if (noQty) out.push({ t: 'ringan', s: noQty + ' baris tanpa qty per dus.' });
+    return out;
+  }
+
   /* ---- ringkasan sebelum cetak ---- */
   function showSummary() {
     var res = buildSheets(0), tpl = T.byKey(opts.tpl), ps = res.lay.paper;
@@ -508,6 +628,7 @@
       '<li><span>Jumlah lembar</span><b>' + res.pages + '</b></li>' +
       '<li><span>Kertas di dialog printer</span><b>' + T.esc(paperName) + '</b></li>' +
       '</ul>' +
+      auditHTML(printableRows()) +
       '<div class="sumtip"><b>Sebelum menekan Print, pastikan:</b><ul>' +
       '<li>Margin: <b>None</b> / <b>Tidak ada</b></li>' +
       '<li>Skala: <b>100%</b> — bukan "Fit to page"</li>' +
@@ -515,6 +636,16 @@
       '<li>Ukuran kertas sama dengan di atas</li>' +
       '</ul></div>';
     openModal('mSum');
+  }
+
+  function auditHTML(list) {
+    var a = auditRows(list), i, h;
+    if (!a.length) return '';
+    h = '<div class="audit"><b>Periksa dulu:</b><ul>';
+    for (i = 0; i < a.length; i++) {
+      h += '<li class="' + (a[i].t === 'berat' ? 'bad' : 'soft') + '">' + T.esc(a[i].s) + '</li>';
+    }
+    return h + '</ul></div>';
   }
 
   /* ---- halaman kalibrasi ---- */
@@ -592,6 +723,7 @@
         var o = JSON.parse(String(fr.result));
         var list = o && o.rows ? o.rows : (o instanceof Array ? o : null);
         if (!list) { toast('Isi cadangan tidak dikenali.'); return; }
+        markUndo('pulihkan cadangan');
         rows = [];
         for (var i = 0; i < list.length; i++) {
           var b = D.blank(), k;
@@ -661,6 +793,7 @@
     var got = D.applyMapping(pendingImport, map);
     if (!got.length) { toast('Tidak ada baris yang terisi setelah dipetakan.'); return; }
 
+    markUndo($('mapReplace').checked ? 'ganti data dengan hasil impor' : 'impor ' + got.length + ' baris');
     if ($('mapReplace').checked) rows = got;
     else rows = rows.concat(got);
     D.fillMissingIds(rows);
@@ -885,6 +1018,7 @@
     buildPaperSelect();
     buildTplPicker();
     bindTable();
+    bindKeys();
 
     var had = restoreState();
     opts.fam = T.byKey(opts.tpl).fam || 'rak';
@@ -911,6 +1045,7 @@
 
     /* ---- toolbar data ---- */
     on($('btnAdd'), 'click', function () {
+      markUndo('tambah baris');
       rows.push(D.newRow(rows.length ? rows[rows.length - 1] : null));
       D.fillMissingIds(rows);
       renderTable(); schedulePreview(); doSave();
@@ -918,6 +1053,7 @@
       if (last) { last.focus(); last.select(); }
     });
 
+    on($('btnUndo'), 'click', doUndo);
     on($('btnImport'), 'click', function () { $('fileIn').value = ''; $('fileIn').click(); });
     on($('fileIn'), 'change', function () { if (this.files && this.files[0]) handleFile(this.files[0]); });
     on($('fileJson'), 'change', function () { if (this.files && this.files[0]) readJSON(this.files[0]); });
@@ -939,6 +1075,7 @@
         out = out.concat(got);
       }
       if (!any) { toast('Tidak ada baris dengan Total Dus lebih dari 1.'); return; }
+      markUndo('pecah per dus');
       rows = out;
       D.fillMissingIds(rows);
       renderTable(); schedulePreview(); doSave();
@@ -946,6 +1083,7 @@
     });
 
     on($('btnRenum'), 'click', function () {
+      markUndo('nomori ulang');
       D.renumber(rows);
       renderTable(); schedulePreview(); doSave();
       toast('Label ID dinomori ulang dari LBL-001.');
@@ -963,6 +1101,7 @@
         }
       }
       if (!n) { toast('Centang dulu baris yang mau digandakan.'); return; }
+      markUndo('gandakan ' + n + ' baris');
       rows = out; D.fillMissingIds(rows);
       renderTable(); schedulePreview(); doSave();
       toast(n + ' baris digandakan.');
@@ -973,6 +1112,7 @@
       for (i = 0; i < rows.length; i++) { if (rows[i]._on) n++; else keep.push(rows[i]); }
       if (!n) { toast('Centang dulu baris yang mau dihapus.'); return; }
       if (!window.confirm('Hapus ' + n + ' baris yang dicentang?')) return;
+      markUndo('hapus ' + n + ' baris');
       rows = keep;
       renderTable(); schedulePreview(); doSave();
       toast(n + ' baris dihapus.');
@@ -1006,11 +1146,13 @@
       } else if (act === 'restore') {
         $('fileJson').value = ''; $('fileJson').click();
       } else if (act === 'sample') {
+        markUndo('isi data contoh');
         rows = D.sampleRows();
         renderTable(); schedulePreview(); doSave();
         toast('12 baris contoh dimasukkan.');
       } else if (act === 'clear') {
-        if (!window.confirm('Kosongkan seluruh data label? Tindakan ini tidak bisa dibatalkan.')) return;
+        if (!window.confirm('Kosongkan seluruh data label?')) return;
+        markUndo('kosongkan data');
         rows = []; D.wipe();
         renderTable(); schedulePreview(); doSave();
         toast('Data dikosongkan.');
@@ -1025,8 +1167,8 @@
       var s = b.getAttribute('data-start');
       if (s === 'import') { $('fileIn').value = ''; $('fileIn').click(); }
       else if (s === 'paste') { $('pasteBox').value = ''; openModal('mPaste'); }
-      else if (s === 'manual') { rows.push(D.newRow(null)); D.fillMissingIds(rows); renderTable(); doSave(); }
-      else if (s === 'sample') { rows = D.sampleRows(); renderTable(); schedulePreview(); doSave(); }
+      else if (s === 'manual') { markUndo('tambah baris'); rows.push(D.newRow(null)); D.fillMissingIds(rows); renderTable(); doSave(); }
+      else if (s === 'sample') { markUndo('isi data contoh'); rows = D.sampleRows(); renderTable(); schedulePreview(); doSave(); }
     });
 
     /* ---- pencarian & saringan ---- */
@@ -1097,6 +1239,15 @@
     els('[data-close]').forEach(function (b) { on(b, 'click', closeModal); });
     on(document, 'keydown', function (e) {
       if (e.key === 'Escape' && openId) closeModal();
+      /* Ctrl+Z hanya diambil alih di luar kotak isian — di dalam kotak,
+         urungkan bawaan browser yang lebih tepat. */
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        var t = e.target, tag = t && t.tagName;
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT' && !openId) {
+          e.preventDefault();
+          doUndo();
+        }
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
         e.preventDefault();
         showTab('print');
@@ -1127,6 +1278,7 @@
       var x = el('#menuExport [data-act="xlsx"]'); if (x) x.hidden = true;
     }
 
+    refreshUndo();
     $('statRight').textContent = 'Data disimpan di komputer ini saja.';
     schedulePreview();
   }
