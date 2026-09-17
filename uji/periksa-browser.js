@@ -500,6 +500,11 @@ function cek(nama, syarat, tambahan) {
         document.querySelectorAll('button, select, input').forEach(function (n) {
           if (n.offsetParent === null) return;
           if (n.closest('.tablewrap') || n.closest('.canvas-scroll')) return;
+          /* Tampilan yang tidak aktif sengaja digeser keluar layar untuk
+             animasi. Isinya tidak terlihat dan tidak bisa diklik, jadi
+             bukan "tombol yang tak terjangkau". */
+          var v = n.closest('.view');
+          if (v && v.className.indexOf('is-on') < 0) return;
           var r = n.getBoundingClientRect();
           if (r.left < -1 || r.right > window.innerWidth + 1) buruk.push((n.id || n.textContent || '').trim().slice(0, 20));
         });

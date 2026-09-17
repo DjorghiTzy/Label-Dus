@@ -60,14 +60,31 @@ button,input,select,textarea{ font:inherit; color:inherit; }
 .brand-text b{ font-size:var(--fs-md); letter-spacing:.2px; white-space:nowrap; }
 .brand-text small{ color:var(--ink-3); font-size:var(--fs-xs); white-space:nowrap; }
 
-.tabs{ display:flex; gap:var(--s1); background:var(--dock-3); padding:3px; border-radius:var(--r-s); }
+.tabs{
+  position:relative;
+  display:flex; gap:var(--s1);
+  background:var(--dock-3); padding:3px; border-radius:var(--r-s);
+}
+/* Penanda yang meluncur. Tabnya sendiri tidak lagi berlatar, jadi yang
+   terlihat bergerak adalah satu keping yang berpindah — bukan dua latar
+   yang berkedip bergantian. */
+.tab-ind{
+  position:absolute; top:3px; bottom:3px; left:0;
+  border-radius:var(--r-xs);
+  background:var(--dock-2);
+  box-shadow:var(--shadow-1);
+  transform:translateX(var(--x,0)); width:var(--w,0);
+  transition:transform .32s cubic-bezier(.22,.68,.28,1), width .32s cubic-bezier(.22,.68,.28,1);
+  pointer-events:none;
+}
 .tab{
   border:0; background:transparent; color:var(--ink-2);
   padding:7px 14px; border-radius:var(--r-xs); cursor:pointer;
   font-weight:600; font-size:var(--fs); white-space:nowrap;
 }
 .tab:hover{ color:var(--ink); }
-.tab.is-on{ background:var(--dock-2); color:var(--ink); box-shadow:var(--shadow-1); }
+.tab{ position:relative; z-index:1; }
+.tab.is-on{ color:var(--ink); }
 
 /* ---- pemilih basis data ---- */
 .dbpick{ display:flex; align-items:center; gap:var(--s2); }
@@ -76,8 +93,18 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   text-transform:uppercase; letter-spacing:.6px; white-space:nowrap;
 }
 .dbpick-btns{
+  position:relative;
   display:flex; gap:2px; padding:2px;
   background:var(--dock-3); border-radius:var(--r-s);
+}
+.db-ind{
+  position:absolute; top:2px; bottom:2px; left:0;
+  border-radius:var(--r-xs);
+  background:var(--steel);
+  box-shadow:var(--shadow-1);
+  transform:translateX(var(--x,0)); width:var(--w,0);
+  transition:transform .3s cubic-bezier(.22,.68,.28,1), width .3s cubic-bezier(.22,.68,.28,1);
+  pointer-events:none;
 }
 .dbbtn{
   border:0; background:transparent; color:var(--ink-2);
@@ -85,10 +112,8 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   font-weight:800; font-size:var(--fs-sm); letter-spacing:.5px;
 }
 .dbbtn:hover{ color:var(--ink); }
-.dbbtn.is-on{
-  background:var(--steel); color:var(--steel-ink);
-  box-shadow:var(--shadow-1);
-}
+.dbbtn{ position:relative; z-index:1; }
+.dbbtn.is-on{ color:var(--steel-ink); }
 
 /* ---- katalog produk ---- */
 .kat-search{ max-width:none; margin-bottom:var(--s2); }
@@ -131,17 +156,20 @@ button,input,select,textarea{ font:inherit; color:inherit; }
   position:absolute; inset:0;
   display:grid; min-height:0;
   opacity:0; visibility:hidden;
-  transform:translateY(8px) scale(.996);
-  transform-origin:top center;
-  transition:opacity .2s ease, transform .24s cubic-bezier(.2,.7,.3,1),
-             visibility 0s linear .24s;
+  transform:translateX(var(--geser, 0));
+  transition:opacity .22s ease, transform .34s cubic-bezier(.22,.68,.28,1),
+             visibility 0s linear .34s;
   pointer-events:none;
 }
+/* Yang di kiri keluar ke kiri, yang di kanan masuk dari kanan —
+   arahnya mengikuti urutan tabnya, jadi terasa seperti geseran. */
+.view.ke-kiri { --geser:-7%; }
+.view.ke-kanan{ --geser: 7%; }
 .view.is-on{
   opacity:1; visibility:visible;
-  transform:none;
+  --geser:0;
   pointer-events:auto;
-  transition:opacity .22s ease, transform .26s cubic-bezier(.2,.7,.3,1),
+  transition:opacity .24s ease, transform .34s cubic-bezier(.22,.68,.28,1),
              visibility 0s;
 }
 

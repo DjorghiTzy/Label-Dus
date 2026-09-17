@@ -980,19 +980,21 @@
       h.push('<button type="button" class="dbbtn" data-db="' + list[i].kunci + '">' +
              T.esc(list[i].nama) + '</button>');
     }
-    $('dbBtns').innerHTML = h.join('');
+    $('dbBtns').innerHTML = '<span class="db-ind" id="dbInd" aria-hidden="true"></span>' + h.join('');
     syncDbPick();
   }
 
   function syncDbPick() {
-    var aktif = D.dbGet();
+    var aktif = D.dbGet(), tombolAktif = null;
     els('#dbBtns .dbbtn').forEach(function (b) {
       var on_ = b.getAttribute('data-db') === aktif;
       b.className = 'dbbtn' + (on_ ? ' is-on' : '');
       b.setAttribute('aria-pressed', on_ ? 'true' : 'false');
+      if (on_) tombolAktif = b;
       var info = D.dbInfo(b.getAttribute('data-db'));
       b.title = info.nama + ' — ' + info.ket + ' (' + D.katalog(info.kunci).length + ' produk)';
     });
+    geserPenanda('dbInd', tombolAktif);
   }
 
   function muatDb(kunci) {
@@ -1028,6 +1030,7 @@
      Cukup satu huruf: "899" saja sudah menyaring 402 produk jadi
      sepuluh teratas. ==================================================== */
   var tipHasil = [], tipAktif = -1, tipInput = null, tipBaris = -1;
+  var tipMode = 'sel';          /* 'sel' = isi baris ini | 'cari' = tambah baris baru */
   var TIP_MAX = 10;
 
   function tipTutup() {
@@ -1062,13 +1065,18 @@
     return out + T.esc(t.slice(pos));
   }
 
-  function tipBuka(inp, q) {
+  function tipBuka(inp, q, mode) {
     var res = D.cariProduk(q, D.dbGet(), TIP_MAX);
     if (!res.hasil.length) { tipTutup(); return; }
 
     tipHasil = res.hasil; tipAktif = -1; tipInput = inp;
-    var tr = inp.parentNode.parentNode;
-    tipBaris = parseInt(tr.getAttribute('data-i'), 10);
+    tipMode = mode || 'sel';
+    if (tipMode === 'sel') {
+      var tr = inp.parentNode.parentNode;
+      tipBaris = parseInt(tr.getAttribute('data-i'), 10);
+    } else {
+      tipBaris = -1;
+    }
 
     var h = [], i, pr;
     for (i = 0; i < tipHasil.length; i++) {
@@ -1079,10 +1087,12 @@
              '<span class="nm">' + tipTebal(pr[1], q) + '</span>' +
              '<span class="st">' + T.esc(pr[2] + (sat ? ' ' + sat : '')) + '</span></div>');
     }
-    if (res.cocok > tipHasil.length) {
-      h.push('<div class="tip-foot">' + res.cocok + ' produk cocok — ketik lebih panjang, ' +
-             'atau pakai tombol "Cari produk" untuk melihat semuanya.</div>');
-    }
+    h.push('<div class="tip-foot">' +
+           (res.cocok > tipHasil.length ? res.cocok + ' produk cocok — ketik lebih panjang. ' : '') +
+           (tipMode === 'cari'
+              ? 'Enter atau klik untuk menambahkan sebagai baris label baru.'
+              : 'Enter atau klik untuk mengisi baris ini.') +
+           '</div>');
 
     var tip = $('tip');
     tip.innerHTML = h.join('');
@@ -1099,10 +1109,11 @@
     var tip = $('tip');
     if (tip.hidden || !tipInput) return;
     var r = tipInput.getBoundingClientRect();
-    var wrap = $('tableWrap').getBoundingClientRect();
-
-    /* sel sudah tergulir keluar dari area tabel -> baru ditutup */
-    if (r.bottom < wrap.top - 2 || r.top > wrap.bottom + 2) { tipTutup(); return; }
+    if (tipMode === 'sel') {
+      var wrap = $('tableWrap').getBoundingClientRect();
+      /* sel sudah tergulir keluar dari area tabel -> baru ditutup */
+      if (r.bottom < wrap.top - 2 || r.top > wrap.bottom + 2) { tipTutup(); return; }
+    }
 
     var lebar = Math.max(r.width, 420);
     if (lebar > window.innerWidth - 16) lebar = window.innerWidth - 16;
@@ -1131,8 +1142,27 @@
   /* Memilih rekomendasi mengisi seluruh kolom produk — ini pilihan
      sadar pengguna, jadi boleh menimpa isi sebelumnya. */
   function tipPilih(n) {
-    var pr = tipHasil[n], i = tipBaris;
-    if (!pr || !rows[i]) { tipTutup(); return; }
+    var pr = tipHasil[n];
+    if (!pr) { tipTutup(); return; }
+
+    /* dari kotak pencarian: produk ditambahkan sebagai baris baru */
+    if (tipMode === 'cari') {
+      markUndo('tambah produk dari pencarian');
+      var baru = D.rowFromProduk(pr, rows.length ? rows[rows.length - 1] : null);
+      rows.push(baru);
+      D.fillMissingIds(rows);
+      tipTutup();
+      /* saringan dikosongkan supaya baris barunya langsung kelihatan */
+      filters.q = ''; $('inSearch').value = '';
+      renderTable(); schedulePreview(); doSave();
+      toast('Ditambahkan: ' + pr[0] + ' — ' + pr[1]);
+      var sel = el('#gridBody tr:last-child input[data-k="qty"]');
+      if (sel) { sel.focus(); sel.select(); }
+      return;
+    }
+
+    var i = tipBaris;
+    if (!rows[i]) { tipTutup(); return; }
     markUndo('ambil produk dari katalog');
     rows[i].kode = String(pr[0] || '');
     rows[i].varian = String(pr[1] || '');
@@ -1430,10 +1460,23 @@
      visibility dan opacity, supaya bisa dianimasikan. Atribut hidden
      tidak dipakai lagi karena display:none mematikan animasi sekaligus
      membuat pratinjau tidak terukur. */
+  /* Memindahkan penanda ke tombol yang aktif. Dipanggil juga saat
+     ukuran jendela berubah, karena lebar tombolnya ikut berubah. */
+  function geserPenanda(indId, tombolAktif) {
+    var ind = $(indId);
+    if (!ind || !tombolAktif) return;
+    var induk = ind.parentNode.getBoundingClientRect();
+    var t = tombolAktif.getBoundingClientRect();
+    ind.style.setProperty('--x', (t.left - induk.left) + 'px');
+    ind.style.setProperty('--w', t.width + 'px');
+  }
+
   function showTab(which) {
     var dataOn = which === 'data';
-    $('viewData').className = 'view' + (dataOn ? ' is-on' : '');
-    $('viewPrint').className = 'view' + (dataOn ? '' : ' is-on');
+    /* Arah geseran mengikuti urutan tabnya: Data label di kiri,
+       Template & cetak di kanan. */
+    $('viewData').className = 'view' + (dataOn ? ' is-on' : ' ke-kiri');
+    $('viewPrint').className = 'view' + (dataOn ? ' ke-kanan' : ' is-on');
     $('viewData').removeAttribute('hidden');
     $('viewPrint').removeAttribute('hidden');
     $('viewData').setAttribute('aria-hidden', dataOn ? 'false' : 'true');
@@ -1442,6 +1485,8 @@
     $('tabPrint').className = 'tab' + (dataOn ? '' : ' is-on');
     $('tabData').setAttribute('aria-selected', dataOn ? 'true' : 'false');
     $('tabPrint').setAttribute('aria-selected', dataOn ? 'false' : 'true');
+    geserPenanda('tabInd', dataOn ? $('tabData') : $('tabPrint'));
+    tipTutup();
     if (!dataOn) { renderPreview(); }
   }
 
@@ -1697,7 +1742,30 @@
     });
 
     /* ---- pencarian & saringan ---- */
-    on($('inSearch'), 'input', function () { filters.q = this.value.trim(); renderTable(); });
+    on($('inSearch'), 'input', function () {
+      filters.q = this.value.trim();
+      renderTable();
+      /* Mengetik di sini bukan cuma menyaring baris yang sudah ada —
+         katalog produk ikut dicari, supaya bisa langsung menambah
+         barang yang belum pernah dimasukkan. */
+      if (filters.q.length >= 2) tipBuka(this, filters.q, 'cari');
+      else tipTutup();
+    });
+    on($('inSearch'), 'focus', function () {
+      if (this.value.trim().length >= 2) tipBuka(this, this.value.trim(), 'cari');
+    });
+    on($('inSearch'), 'blur', function () {
+      setTimeout(function () { if (tipMode === 'cari') tipTutup(); }, 160);
+    });
+    on($('inSearch'), 'keydown', function (e) {
+      if ($('tip').hidden || tipInput !== this) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); tipSorot(tipAktif + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); tipSorot(tipAktif - 1); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        tipPilih(tipAktif >= 0 ? tipAktif : 0);
+      } else if (e.key === 'Escape') { e.preventDefault(); tipTutup(); }
+    });
     on($('fZona'), 'change', function () { filters.zona = this.value; renderTable(); });
     on($('fStatus'), 'change', function () { filters.status = this.value; renderTable(); });
     on($('fOnlyChecked'), 'change', function () { filters.onlyChecked = this.checked; renderTable(); });
@@ -1840,6 +1908,23 @@
     if (typeof XLSX === 'undefined') {
       var x = el('#menuExport [data-act="xlsx"]'); if (x) x.hidden = true;
     }
+
+    /* tempatkan penanda tanpa animasi saat pertama kali */
+    ['tabInd', 'dbInd'].forEach(function (id) {
+      var n = $(id); if (n) n.style.transition = 'none';
+    });
+    showTab('data');
+    syncDbPick();
+    setTimeout(function () {
+      ['tabInd', 'dbInd'].forEach(function (id) {
+        var n = $(id); if (n) n.style.transition = '';
+      });
+    }, 60);
+
+    on(window, 'resize', function () {
+      geserPenanda('tabInd', $('tabData').className.indexOf('is-on') >= 0 ? $('tabData') : $('tabPrint'));
+      syncDbPick();
+    });
 
     refreshUndo();
     $('statRight').textContent = 'Data disimpan di komputer ini saja.';

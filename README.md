@@ -34,9 +34,15 @@ dengan nama dan stoknya.
 
 ### Rekomendasi sambil mengetik
 
-Cara paling cepat: ketik saja di kolom **Kode** atau **Varian**. Mulai
-dari dua huruf, daftar rekomendasi langsung muncul di bawah selnya —
-tidak perlu membuka dialog apa pun.
+Ketik di **kotak pencarian** di atas tabel — bahkan saat daftarnya masih
+kosong. Mulai dari dua huruf, produk yang cocok langsung muncul, dan
+Enter menambahkannya sebagai baris label baru.
+
+Kotak yang sama tetap menyaring baris yang sudah ada, jadi ia melayani
+dua hal sekaligus: mencari di daftar Anda, dan mencari di katalog.
+
+Bisa juga langsung di kolom **Kode** atau **Varian** kalau barisnya sudah
+ada — di situ rekomendasinya mengisi baris itu, bukan menambah baris.
 
 - Ketik `899` → sepuluh teratas dari 402 produk yang cocok
 - Ketik `ugreen hub` → ketemu walaupun kedua kata itu tidak berdampingan
@@ -49,6 +55,10 @@ tidak perlu membuka dialog apa pun.
 | **Enter** | Ambil yang sedang disorot |
 | **Esc** | Tutup daftarnya |
 | Klik | Ambil yang diklik |
+
+Kaki daftarnya selalu menyebut apa yang akan terjadi — "menambahkan
+sebagai baris label baru" atau "mengisi baris ini" — supaya tidak
+tertukar.
 
 Memilih rekomendasi mengisi Kode, nama produk, dan qty sekaligus. Kalau
 Anda hanya mengetik barcode lengkap lalu pindah sel, pengisian tetap
@@ -494,7 +504,16 @@ dicatat di sini:
    ditutup.** Memfokuskan sel di tabel panjang membuat tabelnya
    menggulir sedikit — kalau gulir itu menutup daftarnya, daftarnya
    hilang tepat pada saat dibuka.
-25. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+25. **Kotak pencarian melayani dua hal.** Menyaring baris yang sudah ada
+   tidak berguna kalau daftarnya masih kosong — dan justru saat kosong
+   itulah orang paling butuh menemukan barang. Jadi kotak yang sama juga
+   mencari katalog dan bisa langsung menambahkan hasilnya.
+26. **Perpindahan tab digeser mendatar, bukan dipudarkan.** Percobaan
+   pertama memakai pudar dengan geseran tegak 8 px — nyaris tak terlihat.
+   Sekarang tampilannya benar-benar bergeser mengikuti urutan tabnya, dan
+   satu keping penanda meluncur di belakang tombol yang aktif, termasuk
+   pada pemilih CV/OL.
+27. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
