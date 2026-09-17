@@ -109,6 +109,8 @@ Yang ditangani otomatis:
   strukturnya sehat. Kalau ada sheet **`Claude Import`**, itulah yang
   dipakai — sheet itu memang disiapkan untuk aplikasi ini. Kalau tidak
   ada, yang terpilih `Draft Pengelompokan`.
+- Header `Prefix Lokasi`, `Prefix Location`, `Prefix`, dan `Area Prefix`
+  sama-sama dibaca sebagai **Prefix lokasi**.
 - Kolom **`QR Payload`** dipakai apa adanya. Kalau file mapping sudah
   menuliskan isi QR-nya, aplikasi tidak menyusun ulang.
 - Kolom **`Status Mapping`** menandai baris: `DRAFT OK` bersih,
@@ -128,6 +130,39 @@ itu sengaja dibuat berantakan seperti file Excel lama: ada baris judul
 hiasan, sheet `PRINT_LABEL_8UP` yang harus dilewati, tanggal berupa angka
 seri, dan puluhan baris ekor kosong. Ada juga `contoh/Format_Label_Dus.csv`
 yang sudah memakai judul kolom aplikasi ini.
+
+### Generate lokasi rak
+
+Data mentah biasanya cuma punya **Prefix lokasi** (`A-CHR`) — belum rak,
+baris, dan posisinya. Tombol **Generate lokasi** di baris tombol atas
+mengisi kolom **Lokasi final** untuk baris yang masih kosong:
+
+```
+A-CHR-R01-B01-P01   ← {PREFIX}-Rxx-Bxx-Pxx
+```
+
+Satu rak = 4 baris × 10 posisi = 40 slot. Urutannya `P01`…`P10`, lalu
+`B01`…`B04`, lalu pindah ke `R02`. Tiap prefix punya antrean sendiri:
+`B-CCH` mulai lagi dari `B-CCH-R01-B01-P01`.
+
+Yang dipegang:
+
+- Baris yang **sudah** punya Lokasi final tidak pernah diubah atau
+  dipindah.
+- Slot yang sudah terpakai dilewati — tidak ada lokasi kembar.
+- Barcode yang sama memakai lokasi yang sama, jadi mengimpor file yang
+  sama dua kali tidak menggeser apa pun.
+- Prefix lokasi kosong berarti barisnya dilewati, bukan ditebak.
+- Urutan pengisian: prefix → brand → tipe → nama, supaya varian satu
+  tipe berdekatan di rak.
+
+Lokasi final tetap bisa diketik sendiri di tabel. Yang diketik orang
+menang — aplikasi tidak pernah mengembalikannya ke hasil generator, hanya
+mengingatkan kalau formatnya salah atau lokasinya kembar.
+
+Tombol **Print label rak** mencetak baris yang dicentang memakai lokasi
+yang sudah tersimpan. Tidak ada lokasi yang dibuat di jalur cetak; baris
+tanpa Lokasi final diperingatkan dulu.
 
 ### 3. Merapikan data
 
@@ -579,8 +614,15 @@ Rinciannya ada di `uji/README.md`.
 |---|---|
 | Buka `index.html` tanpa internet, semua fitur jalan | lolos — 0 permintaan jaringan |
 | Impor `contoh/Format_Label_Dus.xlsx` | 60 baris; `46126` → `14-04-2026`; `SKU/Kode` → Kode; `Nama Barang` → SKU |
-| Bolak-balik ekspor → impor | 25/25 kolom kembali, tiap sel sama persis |
-| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 25/25 kolom dikenali |
+| Generator lokasi: urutan P01→P10, B01→B04, lalu R02 | lolos |
+| Tiap prefix punya antrean sendiri | lolos |
+| Lokasi yang sudah ada tidak pernah digeser, termasuk saat digenerate ulang | lolos |
+| Barcode yang sama memakai lokasi yang sama saat impor ulang | lolos |
+| Tidak ada lokasi kembar, tidak ada P11 atau B05 | lolos |
+| Lokasi bertahan setelah halaman dimuat ulang | lolos |
+| Cetak dari Data label memakai lokasi tersimpan, 100 × 25 mm, 20 per A4 | lolos |
+| Bolak-balik ekspor → impor | 28/28 kolom kembali, tiap sel sama persis |
+| Impor `contoh/Format_Label_Dus.csv` | 20 baris, 28/28 kolom dikenali |
 | Workbook saran lokasi | sheet `Claude Import` terpilih di antara enam sheet |
 | `Brand`, `Tipe`, `QR Payload`, `Status Mapping` dikenali terpisah | lolos |
 | QR memakai `QR Payload` dari Excel apa adanya | lolos |
