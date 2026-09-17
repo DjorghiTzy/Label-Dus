@@ -250,27 +250,107 @@
   }
 
   /* ------------------------------------------------------------------
-     PENYIMPANAN (localStorage, selalu dibungkus try/catch)
-     ------------------------------------------------------------------ */
-  var KEY = 'labelgudang.v1';
+     BASIS DATA & PENYIMPANAN
 
-  function save(state) {
+     Ada dua basis data terpisah — CV dan OL — masing-masing punya
+     barisnya sendiri, pengaturannya sendiri, dan katalog produknya
+     sendiri. Keduanya tidak pernah bercampur: kuncinya beda, dan
+     katalognya pun nol barcode yang sama.
+
+     localStorage selalu dibungkus try/catch; kalau diblokir, aplikasi
+     tetap jalan, hanya tidak bisa menyimpan otomatis.
+     ------------------------------------------------------------------ */
+  var DB = [
+    { kunci: 'cv', nama: 'CV', ket: 'Barang umum: elektronik, peralatan, aksesori.' },
+    { kunci: 'ol', nama: 'OL', ket: 'Aksesori ponsel: charger, kabel, case, tempered glass.' }
+  ];
+  var KEY_DB = 'labelgudang.db';
+  var dbAktif = 'cv';
+
+  function keyFor(kunci) { return 'labelgudang.v1.' + (kunci || dbAktif); }
+
+  function dbList() { return DB.slice(0); }
+  function dbInfo(kunci) {
+    for (var i = 0; i < DB.length; i++) if (DB[i].kunci === kunci) return DB[i];
+    return DB[0];
+  }
+  function dbGet() { return dbAktif; }
+  function dbSet(kunci) {
+    dbAktif = dbInfo(kunci).kunci;
+    try { localStorage.setItem(KEY_DB, dbAktif); } catch (e) {}
+    return dbAktif;
+  }
+  function dbRestore() {
     try {
-      localStorage.setItem(KEY, JSON.stringify(state));
+      var v = localStorage.getItem(KEY_DB);
+      if (v) dbAktif = dbInfo(v).kunci;
+    } catch (e) {}
+    return dbAktif;
+  }
+
+  /* Katalog produk dimuat lewat <script> dari data/katalog-*.js.
+     Kalau berkasnya tidak ada, katalognya kosong — bukan error. */
+  function katalog(kunci) {
+    var k = (window.LG && window.LG.katalog) ? window.LG.katalog[kunci || dbAktif] : null;
+    return (k && k.produk) ? k.produk : [];
+  }
+
+  /* Satu produk katalog -> satu baris label. */
+  function rowFromProduk(pr, prev) {
+    var r = newRow(prev);
+    r.labelId = '';
+    r.kode = String(pr[0] || '');
+    r.sku = '';
+    r.varian = String(pr[1] || '');
+    var jml = pr[2], sat = String(pr[3] || '').trim();
+    r.qty = (jml || jml === 0) ? (jml + (sat ? ' ' + sat : '')) : '';
+    if (pr[4]) r.lokasi = String(pr[4]);
+    return r;
+  }
+
+  function cariProduk(q, kunci, batas) {
+    var list = katalog(kunci), out = [], i, n = 0;
+    q = String(q || '').trim().toLowerCase();
+    batas = batas || 200;
+    for (i = 0; i < list.length && n < batas; i++) {
+      if (!q ||
+          String(list[i][0]).toLowerCase().indexOf(q) >= 0 ||
+          String(list[i][1]).toLowerCase().indexOf(q) >= 0) {
+        out.push(list[i]); n++;
+      }
+    }
+    return { hasil: out, total: list.length };
+  }
+
+  function produkByBarcode(kode, kunci) {
+    var list = katalog(kunci), i;
+    kode = String(kode || '').trim().toLowerCase();
+    if (!kode) return null;
+    for (i = 0; i < list.length; i++) {
+      if (String(list[i][0]).toLowerCase() === kode) return list[i];
+    }
+    return null;
+  }
+
+  function save(state, kunci) {
+    try {
+      localStorage.setItem(keyFor(kunci), JSON.stringify(state));
       return true;
     } catch (e) { return false; }
   }
 
-  function load() {
+  function load(kunci) {
     try {
-      var raw = localStorage.getItem(KEY);
+      var raw = localStorage.getItem(keyFor(kunci));
+      /* pindahan dari versi satu-basis-data */
+      if (!raw && (kunci || dbAktif) === 'cv') raw = localStorage.getItem('labelgudang.v1');
       if (!raw) return null;
       var o = JSON.parse(raw);
       return (o && typeof o === 'object') ? o : null;
     } catch (e) { return null; }
   }
 
-  function wipe() { try { localStorage.removeItem(KEY); } catch (e) {} }
+  function wipe(kunci) { try { localStorage.removeItem(keyFor(kunci)); } catch (e) {} }
 
   /* ------------------------------------------------------------------
      IMPOR — dari file ke matriks (larik dari larik)
@@ -551,6 +631,15 @@
     save: save,
     load: load,
     wipe: wipe,
+    dbList: dbList,
+    dbInfo: dbInfo,
+    dbGet: dbGet,
+    dbSet: dbSet,
+    dbRestore: dbRestore,
+    katalog: katalog,
+    cariProduk: cariProduk,
+    produkByBarcode: produkByBarcode,
+    rowFromProduk: rowFromProduk,
     readWorkbook: readWorkbook,
     parseDelimited: parseDelimited,
     matrixToTable: matrixToTable,

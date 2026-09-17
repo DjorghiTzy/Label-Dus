@@ -96,7 +96,7 @@
     saveTimer = setTimeout(doSave, 400);
   }
   function doSave() {
-    var ok = D.save(state());
+    var ok = D.save(state(), D.dbGet());
     var d = new Date();
     $('saveNote').textContent = ok
       ? 'Tersimpan ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
@@ -105,7 +105,7 @@
   function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
 
   function restoreState() {
-    var s = D.load();
+    var s = D.load(D.dbGet());
     if (!s) return false;
     if (s.opts) for (var k in DEF) if (DEF.hasOwnProperty(k) && s.opts[k] !== undefined) opts[k] = s.opts[k];
     if (s.rows && s.rows.length) {
@@ -283,6 +283,30 @@
         updateAllCheck(); saveSoon(); schedulePreview();
         return;
       }
+      /* Mengetik barcode yang ada di katalog akan mengisi nama produk dan
+         stoknya — tapi hanya kalau kolomnya masih kosong, supaya tidak
+         menimpa yang sudah diketik sendiri. */
+      if (t.getAttribute && t.getAttribute('data-k') === 'kode') {
+        tr = t.parentNode.parentNode; i = parseInt(tr.getAttribute('data-i'), 10);
+        if (!rows[i]) return;
+        var pr = D.produkByBarcode(t.value, D.dbGet());
+        if (pr) {
+          var isi = [];
+          if (!String(rows[i].varian || '').trim()) { rows[i].varian = String(pr[1] || ''); isi.push('nama'); }
+          if (!String(rows[i].qty || '').trim()) {
+            var sat = String(pr[3] || '').trim();
+            rows[i].qty = (pr[2] || pr[2] === 0) ? (pr[2] + (sat ? ' ' + sat : '')) : '';
+            isi.push('qty');
+          }
+          if (pr[4] && !String(rows[i].lokasi || '').trim()) { rows[i].lokasi = String(pr[4]); isi.push('lokasi'); }
+          if (isi.length) {
+            renderTable(); schedulePreview(); saveSoon();
+            toast('Dari katalog: ' + pr[1]);
+          }
+        }
+        return;
+      }
+
       if (t.getAttribute && t.getAttribute('data-k') === 'tanggal') {
         tr = t.parentNode.parentNode; i = parseInt(tr.getAttribute('data-i'), 10);
         if (!rows[i]) return;
@@ -471,27 +495,82 @@
   }
 
   /* Huruf condensed tidak selalu ada di komputer gudang. Kalau font
-     pengganti lebih lebar, teks besar bisa terpotong jadi "10…", jadi
-     ukuran hurufnya dikecilkan sampai benar-benar muat.
-     Semua pengukuran dikerjakan sekaligus, baru semua penulisan —
-     supaya browser hanya menghitung tata letak beberapa kali, bukan
-     sekali untuk tiap label. */
+     pengganti lebih lebar, teks besar bisa terpotong, jadi ukurannya
+     dikecilkan sampai benar-benar muat.
+
+     Tapi mengecilkan tanpa batas merusak labelnya dengan cara lain:
+     lokasi "GUDANG-B-LANTAI2-RAK07-SLOT23" pernah menyusut jadi 3,38 mm
+     — sama besar dengan baris keterangan di bawahnya — sehingga
+     hierarkinya runtuh dan kedua baris terlihat berdempet. Label rak
+     yang harusnya terbaca dari 3 meter jadi tidak terbaca sama sekali.
+
+     Karena itu: teks yang boleh dipatahkan (data-wrap) tidak dikecilkan
+     melewati ambang; ia dipecah jadi dua baris. Dua baris 7 mm jauh
+     lebih terbaca daripada satu baris 3,4 mm.
+
+     Semua pengukuran dikerjakan sekaligus, baru semua penulisan, supaya
+     browser hanya menghitung tata letak beberapa kali. */
+  var FIT_AMBANG = 0.55;   /* di bawah 55% ukuran awal, lebih baik dipatahkan */
+
+  function mmDariPx(px) { return px / (96 / 25.4); }
+
   function fitTexts(root) {
     var list = els('[data-fit]', root);
     if (!list.length) return;
-    var sizes = [], i, pass, need, n, cw, sw;
-    for (i = 0; i < list.length; i++) sizes.push(parseFloat(list[i].style.fontSize) || 0);
-    for (pass = 0; pass < 3; pass++) {
+    var awal = [], sizes = [], i, pass, need, n, cw, sw;
+
+    for (i = 0; i < list.length; i++) {
+      var f = parseFloat(list[i].style.fontSize) || 0;
+      awal.push(f); sizes.push(f);
+    }
+
+    /* ---- tahap 1: pecah jadi dua baris kalau penyusutannya kebablasan ---- */
+    var ubah = [];
+    for (i = 0; i < list.length; i++) {
+      n = list[i];
+      if (!n.getAttribute('data-wrap')) continue;
+      cw = n.clientWidth; sw = n.scrollWidth;
+      if (cw <= 0 || sw <= cw + 0.5) continue;
+      var satuBaris = sizes[i] * (cw / sw);
+      if (satuBaris >= awal[i] * FIT_AMBANG) continue;   /* masih wajar, susutkan biasa */
+
+      /* dua baris memuat kira-kira dua kali lebih banyak huruf */
+      var dua = Math.min(awal[i], satuBaris * 1.9);
+      /* jangan melebihi tinggi kotaknya sendiri kalau CSS membatasinya */
+      var maxH = parseFloat(getComputedStyle(n).maxHeight);
+      if (isFinite(maxH) && maxH > 0) dua = Math.min(dua, mmDariPx(maxH) / 2.05);
+      ubah.push([i, Math.max(2, dua)]);
+    }
+    for (i = 0; i < ubah.length; i++) {
+      var k = ubah[i][0];
+      list[k].className += ' fit-wrap';
+      sizes[k] = ubah[i][1];
+      list[k].style.fontSize = (Math.round(sizes[k] * 100) / 100) + 'mm';
+    }
+
+    /* ---- tahap 2: susutkan yang masih melebar ATAU meninggi ----
+       Tinggi penting untuk teks yang sudah dipatahkan: kalau tiga baris
+       dipaksa masuk kotak dua baris, ekornya hilang — dan pada kode
+       lokasi, ekor itulah bagian paling spesifik (…-SLOT23). */
+    for (pass = 0; pass < 8; pass++) {
       need = [];
       for (i = 0; i < list.length; i++) {
-        n = list[i]; cw = n.clientWidth; sw = n.scrollWidth;
-        if (cw > 0 && sw > cw + 0.5) need.push([i, cw / sw]);
+        n = list[i];
+        cw = n.clientWidth; sw = n.scrollWidth;
+        var rasio = (cw > 0 && sw > cw + 0.5) ? cw / sw : 1;
+        /* Toleransi sebesar seperempat baris. Tanpa ini, line-height di
+           bawah 1 membuat scrollHeight selalu sedikit melebihi
+           clientHeight, dan gelangnya menyusut tanpa henti. */
+        var ch = n.clientHeight, sh = n.scrollHeight;
+        var toleransi = Math.max(2, sizes[i] * 3.7795 * 0.25);
+        if (ch > 0 && sh > ch + toleransi) rasio = Math.min(rasio, 0.92);
+        if (rasio < 1) need.push([i, rasio]);
       }
       if (!need.length) return;
       for (i = 0; i < need.length; i++) {
-        var k = need[i][0];
-        sizes[k] = Math.max(2, sizes[k] * need[i][1] * 0.985);
-        list[k].style.fontSize = (Math.round(sizes[k] * 100) / 100) + 'mm';
+        var j = need[i][0];
+        sizes[j] = Math.max(2, sizes[j] * need[i][1] * 0.985);
+        list[j].style.fontSize = (Math.round(sizes[j] * 100) / 100) + 'mm';
       }
     }
   }
@@ -875,6 +954,154 @@
     toast(got.length + ' baris dimasukkan.');
   }
 
+  /* ========================== BASIS DATA ==========================
+     Berpindah basis data = menyimpan yang sekarang, lalu memuat yang
+     dituju. Baris, pengaturan, dan tumpukan urungkan semuanya terpisah.
+     ================================================================= */
+  function buildDbPick() {
+    var list = D.dbList(), h = [], i;
+    for (i = 0; i < list.length; i++) {
+      h.push('<button type="button" class="dbbtn" data-db="' + list[i].kunci + '">' +
+             T.esc(list[i].nama) + '</button>');
+    }
+    $('dbBtns').innerHTML = h.join('');
+    syncDbPick();
+  }
+
+  function syncDbPick() {
+    var aktif = D.dbGet();
+    els('#dbBtns .dbbtn').forEach(function (b) {
+      var on_ = b.getAttribute('data-db') === aktif;
+      b.className = 'dbbtn' + (on_ ? ' is-on' : '');
+      b.setAttribute('aria-pressed', on_ ? 'true' : 'false');
+      var info = D.dbInfo(b.getAttribute('data-db'));
+      b.title = info.nama + ' — ' + info.ket + ' (' + D.katalog(info.kunci).length + ' produk)';
+    });
+  }
+
+  function muatDb(kunci) {
+    doSave();                       /* simpan yang sedang dibuka dulu */
+    D.dbSet(kunci);
+    undoStack = [];
+    rows = [];
+    var st = D.load(kunci);
+    if (st && st.rows) {
+      for (var i = 0; i < st.rows.length; i++) {
+        var b = D.blank(), src = st.rows[i], c;
+        for (c in b) if (b.hasOwnProperty(c) && src[c] !== undefined) b[c] = src[c];
+        b._on = src._on !== false;
+        rows.push(b);
+      }
+    }
+    if (st && st.opts) {
+      for (var k in DEF) if (DEF.hasOwnProperty(k) && st.opts[k] !== undefined) opts[k] = st.opts[k];
+    }
+    opts.fam = T.byKey(opts.tpl).fam || 'rak';
+    filters.q = ''; filters.zona = ''; filters.status = ''; filters.onlyChecked = false;
+    $('inSearch').value = '';
+    refreshUndo(); syncDbPick(); buildTplPicker(); syncControls();
+    renderTable(); schedulePreview();
+    var info = D.dbInfo(kunci);
+    toast('Basis data ' + info.nama + ' — ' + rows.length + ' baris, ' +
+          D.katalog(kunci).length + ' produk di katalog.');
+  }
+
+  /* ========================= KATALOG PRODUK ========================= */
+  var katPilih = {};
+
+  function bukaKatalog() {
+    katPilih = {};
+    $('katCari').value = '';
+    var info = D.dbInfo(D.dbGet());
+    $('katJudul').textContent = 'Cari produk — ' + info.nama;
+    renderKatalog();
+    openModal('mKat');
+    setTimeout(function () { try { $('katCari').focus(); } catch (e) {} }, 40);
+  }
+
+  function renderKatalog() {
+    var q = $('katCari').value;
+    var res = D.cariProduk(q, D.dbGet(), 300);
+    var h = [], i, pr;
+
+    if (!res.total) {
+      h.push('<tr><td colspan="5" class="kosong">Katalog basis data ini kosong. ' +
+             'Berkas data/katalog-*.js mungkin tidak ikut tersalin.</td></tr>');
+    } else if (!res.hasil.length) {
+      h.push('<tr><td colspan="5" class="kosong">Tidak ada produk yang cocok dengan "' +
+             T.esc(q) + '".</td></tr>');
+    } else {
+      for (i = 0; i < res.hasil.length; i++) {
+        pr = res.hasil[i];
+        var kode = String(pr[0]);
+        var dipilih = !!katPilih[kode];
+        h.push('<tr data-bar="' + T.esc(kode) + '"' + (dipilih ? ' class="is-pick"' : '') + '>' +
+               '<td class="kat-pick"><input type="checkbox"' + (dipilih ? ' checked' : '') +
+               ' aria-label="Pilih ' + T.esc(kode) + '"></td>' +
+               '<td class="bar">' + T.esc(kode) + '</td>' +
+               '<td>' + T.esc(pr[1]) + '</td>' +
+               '<td class="num">' + T.esc(pr[2]) + '</td>' +
+               '<td>' + T.esc(pr[3] || '') + '</td></tr>');
+      }
+    }
+    $('katBody').innerHTML = h.join('');
+    $('katInfo').textContent = res.total
+      ? (q ? res.hasil.length + ' dari ' + res.total + ' produk cocok'
+           : res.total + ' produk di katalog ' + D.dbInfo(D.dbGet()).nama +
+             (res.hasil.length < res.total ? ' — menampilkan ' + res.hasil.length + ' teratas' : ''))
+      : '';
+    syncKatPilih();
+  }
+
+  function syncKatPilih() {
+    var n = 0, k;
+    for (k in katPilih) if (katPilih.hasOwnProperty(k)) n++;
+    $('katPilih').textContent = n ? n + ' produk dipilih' : 'Belum ada yang dipilih';
+    $('katOk').disabled = !n;
+    var kotak = els('#katBody tr');
+    var semua = kotak.length > 0;
+    for (var i = 0; i < kotak.length; i++) {
+      if (!katPilih[kotak[i].getAttribute('data-bar')]) { semua = false; break; }
+    }
+    $('katAll').checked = semua;
+  }
+
+  function tambahDariKatalog() {
+    var list = D.katalog(D.dbGet()), tambah = [], i;
+    for (i = 0; i < list.length; i++) {
+      if (katPilih[String(list[i][0])]) tambah.push(list[i]);
+    }
+    if (!tambah.length) return;
+    markUndo('tambah ' + tambah.length + ' produk dari katalog');
+    var prev = rows.length ? rows[rows.length - 1] : null;
+    for (i = 0; i < tambah.length; i++) {
+      var r = D.rowFromProduk(tambah[i], prev);
+      rows.push(r); prev = r;
+    }
+    D.fillMissingIds(rows);
+    closeModal();
+    showTab('data');
+    renderTable(); schedulePreview(); doSave();
+    toast(tambah.length + ' produk ditambahkan ke daftar.');
+  }
+
+  /* ======================== DIALOG KONFIRMASI ========================
+     Menggantikan window.confirm. Pop-up bawaan browser menampilkan nama
+     domain, tidak bisa ditata, dan menghentikan seluruh halaman. */
+  var askLanjut = null;
+
+  function tanya(opsi) {
+    $('askJudul').textContent = opsi.judul || 'Konfirmasi';
+    $('askPesan').textContent = opsi.pesan || '';
+    var ok = $('askOk');
+    ok.textContent = opsi.tombol || 'Ya';
+    ok.className = 'btn ' + (opsi.bahaya ? 'btn-danger btn-solid' : 'btn-primary');
+    $('askBatal').textContent = opsi.batal || 'Batal';
+    askLanjut = opsi.lanjut || null;
+    openModal('mAsk');
+    setTimeout(function () { try { ok.focus(); } catch (e) {} }, 30);
+  }
+
   /* ============================== MODAL ============================== */
   var openId = null;
   function openModal(id) {
@@ -1057,12 +1284,18 @@
   }
 
   /* =============================== TAB =============================== */
+  /* Kedua tampilan tetap ada di tata letak; yang berpindah cuma
+     visibility dan opacity, supaya bisa dianimasikan. Atribut hidden
+     tidak dipakai lagi karena display:none mematikan animasi sekaligus
+     membuat pratinjau tidak terukur. */
   function showTab(which) {
     var dataOn = which === 'data';
     $('viewData').className = 'view' + (dataOn ? ' is-on' : '');
     $('viewPrint').className = 'view' + (dataOn ? '' : ' is-on');
-    $('viewData').hidden = !dataOn;
-    $('viewPrint').hidden = dataOn;
+    $('viewData').removeAttribute('hidden');
+    $('viewPrint').removeAttribute('hidden');
+    $('viewData').setAttribute('aria-hidden', dataOn ? 'false' : 'true');
+    $('viewPrint').setAttribute('aria-hidden', dataOn ? 'true' : 'false');
     $('tabData').className = 'tab' + (dataOn ? ' is-on' : '');
     $('tabPrint').className = 'tab' + (dataOn ? '' : ' is-on');
     $('tabData').setAttribute('aria-selected', dataOn ? 'true' : 'false');
@@ -1099,6 +1332,8 @@
     bindTable();
     bindKeys();
 
+    D.dbRestore();
+    buildDbPick();
     var had = restoreState();
     opts.fam = T.byKey(opts.tpl).fam || 'rak';
     buildTplPicker();
@@ -1130,6 +1365,40 @@
       renderTable(); schedulePreview(); doSave();
       var last = el('#gridBody tr:last-child input[data-k="kode"]');
       if (last) { last.focus(); last.select(); }
+    });
+
+    on($('dbBtns'), 'click', function (e) {
+      var b = e.target;
+      while (b && b !== this && !(b.getAttribute && b.getAttribute('data-db'))) b = b.parentNode;
+      if (!b || b === this) return;
+      var kunci = b.getAttribute('data-db');
+      if (kunci === D.dbGet()) return;
+      muatDb(kunci);
+    });
+
+    on($('btnKatalog'), 'click', bukaKatalog);
+    on($('katCari'), 'input', renderKatalog);
+    on($('katOk'), 'click', tambahDariKatalog);
+    on($('katAll'), 'change', function () {
+      var v = this.checked;
+      els('#katBody tr').forEach(function (tr) {
+        var bar = tr.getAttribute('data-bar');
+        if (!bar) return;
+        if (v) katPilih[bar] = 1; else delete katPilih[bar];
+      });
+      renderKatalog();
+    });
+    on($('katBody'), 'click', function (e) {
+      var tr = e.target;
+      while (tr && tr !== this && tr.tagName !== 'TR') tr = tr.parentNode;
+      if (!tr || tr === this) return;
+      var bar = tr.getAttribute('data-bar');
+      if (!bar) return;
+      if (katPilih[bar]) delete katPilih[bar]; else katPilih[bar] = 1;
+      tr.className = katPilih[bar] ? 'is-pick' : '';
+      var cb = tr.querySelector('input[type=checkbox]');
+      if (cb) cb.checked = !!katPilih[bar];
+      syncKatPilih();
     });
 
     on($('btnUndo'), 'click', doUndo);
@@ -1190,11 +1459,18 @@
       var keep = [], n = 0, i;
       for (i = 0; i < rows.length; i++) { if (rows[i]._on) n++; else keep.push(rows[i]); }
       if (!n) { toast('Centang dulu baris yang mau dihapus.'); return; }
-      if (!window.confirm('Hapus ' + n + ' baris yang dicentang?')) return;
-      markUndo('hapus ' + n + ' baris');
-      rows = keep;
-      renderTable(); schedulePreview(); doSave();
-      toast(n + ' baris dihapus.');
+      tanya({
+        judul: 'Hapus ' + n + ' baris?',
+        pesan: 'Baris yang dicentang akan dihapus dari daftar. Bisa dibatalkan lagi '
+             + 'lewat tombol Urungkan atau Ctrl+Z.',
+        tombol: 'Hapus ' + n + ' baris', bahaya: true,
+        lanjut: function () {
+          markUndo('hapus ' + n + ' baris');
+          rows = keep;
+          renderTable(); schedulePreview(); doSave();
+          toast(n + ' baris dihapus.');
+        }
+      });
     });
 
     /* ---- menu ekspor ---- */
@@ -1230,11 +1506,18 @@
         renderTable(); schedulePreview(); doSave();
         toast('12 baris contoh dimasukkan.');
       } else if (act === 'clear') {
-        if (!window.confirm('Kosongkan seluruh data label?')) return;
-        markUndo('kosongkan data');
-        rows = []; D.wipe();
-        renderTable(); schedulePreview(); doSave();
-        toast('Data dikosongkan.');
+        tanya({
+          judul: 'Kosongkan seluruh data label?',
+          pesan: 'Semua ' + rows.length + ' baris akan dihapus dari basis data ini. '
+               + 'Masih bisa diurungkan, tapi lebih aman buat cadangan .json dulu.',
+          tombol: 'Kosongkan', bahaya: true,
+          lanjut: function () {
+            markUndo('kosongkan data');
+            rows = []; D.wipe();
+            renderTable(); schedulePreview(); doSave();
+            toast('Data dikosongkan.');
+          }
+        });
       }
     });
 
@@ -1346,6 +1629,11 @@
     on($('btnCalib'), 'click', printCalibration);
 
     /* ---- modal ---- */
+    on($('askOk'), 'click', function () {
+      var f = askLanjut; askLanjut = null;
+      closeModal();
+      if (f) setTimeout(f, 60);
+    });
     on($('mapOk'), 'click', confirmMapping);
     on($('backdrop'), 'click', closeModal);
     els('[data-close]').forEach(function (b) { on(b, 'click', closeModal); });

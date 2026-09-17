@@ -135,8 +135,7 @@
     var loc = lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
     var useQr = o.qr && qrOK;
     /* lebar tersisa untuk kode lokasi: 100 − pita − sisi kanan − padding − garis */
-    var avail = 100 - 4.5 - 0.6 - 3.2 - (useQr ? 18.2 : 0) - 6.4;
-    var fs = fit(loc, avail, 15, 0.5) * o.k;
+    var fs = 15 * o.k;          /* ukuran puncak; app.js menyusutkan atau memecah */
 
     var meta = [];
     if (subPlain(row)) meta.push('<span class="sku">' + esc(subPlain(row)) + '</span>');
@@ -147,7 +146,8 @@
     return '' +
       '<div class="band"></div>' +
       '<div class="r-main">' +
-        '<div class="big r-loc" data-fit style="font-size:' + fs + 'mm">' + esc(loc || '—') + '</div>' +
+        '<div class="big r-loc" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+        esc(loc || '—') + '</div>' +
         (meta.length ? '<div class="r-meta">' + meta.join('') + '</div>' : '') +
       '</div>' +
       '<div class="r-side">' +
@@ -161,7 +161,7 @@
      ================================================================== */
   function renderDus250(row, o) {
     var code = D.bigCode(row);
-    var fs = fit(code, 91.2, 34, 0.5) * o.k;
+    var fs = 34 * o.k;
     var loc = lokasiOf(row, o);
     var useQr = o.qr && qrOK;
     var useBc = o.barcode && bcOK;
@@ -203,7 +203,8 @@
       '<div class="tbar"><span>Label Dus</span><span class="id">' + esc(row.labelId || '') + '</span></div>' +
       '<div class="d-body">' +
         '<div class="d-hero">' +
-          '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(code || '—') + '</div>' +
+          '<div class="big" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+          esc(code || '—') + '</div>' +
           (subPlain(row) ? '<div class="sub">' + subOf(row) + '</div>' : '') +
         '</div>' +
         '<div class="d-rule"></div>' +
@@ -334,8 +335,7 @@
   function renderRak(row, o) {
     var loc = lokasiOf(row, o) || String(row.kode || '').trim() || D.bigCode(row);
     var useQr = o.qr && qrOK;
-    var avail = o.cw - 4 - 5 - (useQr ? 17 : 0) - (row.zona ? 6.5 : 0) - 2;
-    var fs = fit(loc, avail, o.ch * 0.55, 0.5) * o.k;
+    var fs = o.ch * 0.55 * o.k;
 
     var meta = [];
     if (subPlain(row)) meta.push('<span><b>' + esc(subPlain(row)) + '</b></span>');
@@ -345,7 +345,8 @@
     return '' +
       '<div class="band"></div>' +
       '<div class="k-main">' +
-        '<div class="big" data-fit style="font-size:' + fs + 'mm">' + esc(loc || '—') + '</div>' +
+        '<div class="big" data-fit data-wrap="2" style="font-size:' + fs + 'mm">' +
+        esc(loc || '—') + '</div>' +
         (meta.length ? '<div class="k-meta">' + meta.join('') + '</div>' : '') +
       '</div>' +
       '<div class="k-side">' +
@@ -546,9 +547,10 @@
 
       case 'hero':
         var ht = heroText(row, o, part.src);
-        var hs = fit(ht, o.cw - 2 * u, (part.size || 2.2) * u, 0.5) * o.k;
+        var hs = (part.size || 2.2) * u * o.k;
         return '<div class="g-hero' + cls + (part.align ? ' a-' + part.align : '') + '">' +
-               '<div class="big" data-fit style="font-size:' + mmv(hs) + '">' + esc(ht || '—') + '</div>' +
+               '<div class="big" data-fit data-wrap="2" style="font-size:' + mmv(hs) + '">' +
+               esc(ht || '—') + '</div>' +
                (part.sub === false || !subPlain(row) ? '' :
                  '<div class="g-sub" style="font-size:' + mmv((part.subSize || 0.72) * u * o.k) + '">' +
                  subOf(row) + '</div>') +

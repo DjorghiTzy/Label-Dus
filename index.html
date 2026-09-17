@@ -29,6 +29,11 @@
       </span>
     </div>
 
+    <div class="dbpick" id="dbPick" role="group" aria-label="Basis data aktif">
+      <span class="dbpick-lbl">Basis data</span>
+      <div class="dbpick-btns" id="dbBtns"></div>
+    </div>
+
     <nav class="tabs" role="tablist" aria-label="Bagian aplikasi">
       <button type="button" class="tab is-on" id="tabData" role="tab" aria-selected="true" aria-controls="viewData">Data label</button>
       <button type="button" class="tab" id="tabPrint" role="tab" aria-selected="false" aria-controls="viewPrint">Template &amp; cetak</button>
@@ -50,6 +55,7 @@
         <button type="button" class="btn btn-primary" id="btnAdd">+ Baris</button>
         <button type="button" class="btn" id="btnImport">Impor Excel / CSV</button>
         <button type="button" class="btn" id="btnPaste">Tempel dari Excel</button>
+        <button type="button" class="btn" id="btnKatalog" title="Ambil dari katalog produk">Cari produk</button>
         <button type="button" class="btn" id="btnSplit" title="Satu baris dengan Total Dus 5 menjadi 5 baris">Pecah per dus</button>
         <button type="button" class="btn" id="btnRenum" title="Isi ulang seluruh Label ID berurutan">Nomori ulang</button>
         <button type="button" class="btn" id="btnDupSel" title="Gandakan baris tercentang">Gandakan</button>
@@ -123,7 +129,7 @@
     </section>
 
     <!-- ======================= TAB 2 : TEMPLATE & CETAK ======================= -->
-    <section class="view" id="viewPrint" role="tabpanel" aria-labelledby="tabPrint" hidden>
+    <section class="view" id="viewPrint" role="tabpanel" aria-labelledby="tabPrint" aria-hidden="true">
       <div class="split">
 
         <aside class="panel" id="panel">
@@ -324,6 +330,48 @@
   </div>
 </div>
 
+<div class="modal modal-wide" id="mKat" hidden role="dialog" aria-modal="true" aria-labelledby="katJudul">
+  <div class="modal-head">
+    <h2 id="katJudul">Cari produk</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">&#10005;</button>
+  </div>
+  <div class="modal-body">
+    <label class="search kat-search">
+      <span class="search-ico" aria-hidden="true">&#8981;</span>
+      <input type="search" id="katCari" placeholder="Ketik nama produk atau barcode…" autocomplete="off">
+    </label>
+    <p class="note" id="katInfo"></p>
+    <div class="kattable-wrap">
+      <table class="kattable">
+        <thead><tr>
+          <th class="kat-pick"><input type="checkbox" id="katAll" aria-label="Centang semua hasil"></th>
+          <th>Barcode</th><th>Nama produk</th><th class="num">Stok</th><th>Satuan</th>
+        </tr></thead>
+        <tbody id="katBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <span class="note" id="katPilih">Belum ada yang dipilih</span>
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close>Batal</button>
+    <button type="button" class="btn btn-primary" id="katOk">Tambah ke daftar</button>
+  </div>
+</div>
+
+<div class="modal modal-ask" id="mAsk" hidden role="dialog" aria-modal="true" aria-labelledby="askJudul">
+  <div class="modal-head">
+    <h2 id="askJudul">Konfirmasi</h2>
+    <button type="button" class="iconbtn" data-close aria-label="Tutup">&#10005;</button>
+  </div>
+  <div class="modal-body"><p id="askPesan"></p></div>
+  <div class="modal-foot">
+    <span class="grow"></span>
+    <button type="button" class="btn" data-close id="askBatal">Batal</button>
+    <button type="button" class="btn btn-primary" id="askOk">Ya</button>
+  </div>
+</div>
+
 <div class="modal" id="mHelp" hidden role="dialog" aria-modal="true" aria-labelledby="mHelpTitle">
   <div class="modal-head">
     <h2 id="mHelpTitle">Bantuan singkat</h2>
@@ -351,6 +399,8 @@
 <script src="vendor/xlsx.mini.min.js"></script>
 <script src="vendor/qrcode.js"></script>
 <script src="vendor/JsBarcode.code128.min.js"></script>
+<script src="data/katalog-cv.js"></script>
+<script src="data/katalog-ol.js"></script>
 <script src="assets/data.js"></script>
 <script src="assets/templates.js"></script>
 <script src="assets/app.js"></script>

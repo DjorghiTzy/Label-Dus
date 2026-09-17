@@ -108,6 +108,19 @@
   text-overflow:ellipsis;
 }
 
+/* Dipasang app.js kalau teks tidak muat pada ukuran yang masih terbaca.
+   Dua baris 7 mm jauh lebih berguna daripada satu baris 3,4 mm.
+   Pemenggalan diarahkan ke tanda hubung, karena kode lokasi gudang
+   hampir selalu berbentuk G2-F2-S03 atau GUDANG-B-RAK07. */
+.big.fit-wrap{
+  white-space:normal;
+  text-overflow:clip;
+  line-height:.95;
+  overflow-wrap:anywhere;
+  max-height:100%;
+  overflow:hidden;
+}
+
 .mono{ font-family:var(--mono); }
 .cap{
   font-family:var(--sans); font-weight:700;
@@ -152,7 +165,7 @@
 .lbl-rak100 .r-loc{
   /* font-size diisi app.js: menyesuaikan panjang teks */
   line-height:.88;
-  max-height:14mm;
+  max-height:15mm;
 }
 .lbl-rak100 .r-meta{
   display:flex; align-items:baseline; gap:2.2mm;
@@ -368,11 +381,15 @@
    6. LABEL RAK / BIN — 2 × 6 strip (proporsional)
    ===================================================================== */
 .lbl-rak{
-  display:grid; grid-template-columns:4mm minmax(0,1fr) auto;
+  display:grid;
+  grid-template-columns:4mm minmax(0,1fr) auto;
+  grid-template-rows:minmax(0,1fr);
   border:0.3mm solid #0E1620; align-items:stretch;
+  overflow:hidden;
 }
 .lbl-rak .k-main{ display:flex; flex-direction:column; justify-content:center;
-  padding:1.5mm 2.5mm; gap:1mm; min-width:0; }
+  padding:1.5mm 2.5mm; gap:1mm; min-width:0; min-height:0; overflow:hidden; }
+.lbl-rak .k-main .big{ max-height:70%; }
 .lbl-rak .k-meta{ display:flex; gap:3mm; font-size:calc(3mm * var(--k)); color:#46545F; min-width:0; }
 .lbl-rak .k-meta span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .lbl-rak .k-meta b{ color:#0E1620; }

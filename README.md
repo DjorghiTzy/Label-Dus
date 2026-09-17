@@ -10,6 +10,36 @@ dimasukkan sekali, lalu bisa dicetak dalam sembilan bentuk label.
 
 ---
 
+## Dua basis data: CV dan OL
+
+Di kanan atas ada pemilih **BASIS DATA — CV / OL**. Keduanya benar-benar
+terpisah: baris label, pengaturan cetak, dan katalog produknya sendiri-
+sendiri. Berpindah tidak pernah mencampur data; yang sedang dibuka
+disimpan dulu, lalu yang dituju dimuat.
+
+| | Isi | Katalog produk |
+|---|---|---|
+| **CV** | Barang umum: elektronik, peralatan, aksesori | 731 produk |
+| **OL** | Aksesori ponsel: charger, kabel, case, tempered glass | 245 produk |
+
+Pilihan basis data ikut tersimpan, jadi besok aplikasi terbuka di tempat
+yang sama.
+
+### Katalog produk
+
+Tombol **Cari produk** di tab Data label membuka katalog basis data yang
+sedang aktif. Ketik nama produk atau barcode, centang yang dibutuhkan,
+lalu **Tambah ke daftar** — semuanya langsung jadi baris label lengkap
+dengan nama dan stoknya.
+
+Cara cepat lain: ketik saja barcode di kolom **Kode**. Kalau ada di
+katalog, nama produk dan qty terisi sendiri — tapi hanya kolom yang masih
+kosong, supaya yang sudah Anda ketik tidak tertimpa.
+
+Katalognya ada di `data/katalog-cv.js` dan `data/katalog-ol.js`, dimuat
+lewat `<script>` biasa — bukan `fetch`, karena `fetch` diblokir saat
+halaman dibuka dengan `file://`.
+
 ## Cara memakai (untuk staf gudang)
 
 ### 1. Membuka aplikasi
@@ -301,6 +331,9 @@ yang perlu diperbaiki.
 
 ```
 index.html            kerangka + seluruh markup
+data/
+  katalog-cv.js       katalog produk CV (731 produk)
+  katalog-ol.js       katalog produk OL (245 produk)
 assets/
   tokens.css          warna, huruf, jarak (tema terang & gelap)
   app.css             kerangka aplikasi
@@ -415,7 +448,25 @@ dicatat di sini:
    kosong. Sekarang ia membedakan tiga keadaan — belum ada data, ada data
    tapi belum dicentang, dan rentang lembar yang mengosongkan hasil —
    dan masing-masing memberi tombol yang langsung menyelesaikannya.
-19. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+19. **Teks yang tidak muat dipatahkan, bukan dikecilkan terus.** Kode
+   lokasi `GUDANG-B-LANTAI2-RAK07-SLOT23` pernah menyusut jadi 3,38 mm —
+   sama besar dengan baris keterangan di bawahnya — sehingga hierarkinya
+   runtuh dan kedua baris terlihat berdempet. Sekarang teks yang boleh
+   dipatahkan berhenti menyusut di 55% ukuran awalnya lalu dipecah jadi
+   dua baris: 5,91 mm dan utuh sampai `SLOT23`, bukan 3,38 mm.
+20. **Pop-up bawaan browser diganti dialog sendiri.** `window.confirm`
+   menampilkan nama domain, tidak bisa ditata, dan menghentikan seluruh
+   halaman. Dialog sendiri juga bisa menjelaskan akibatnya — misalnya
+   mengingatkan bahwa penghapusan masih bisa diurungkan.
+21. **Perpindahan tab memakai visibility, bukan display.** Dengan
+   `display:none` animasi tidak jalan dan pratinjau cetak tidak terukur
+   sampai tabnya dibuka. Sekarang keduanya tetap ada di tata letak dan
+   bersilang-pudar — sekaligus menghilangkan kedipan "menyesuaikan zoom"
+   saat pertama kali pindah tab.
+22. **Katalog produk dimuat lewat `<script>`, bukan `fetch`.** Di
+   `file://`, `fetch` diblokir aturan asal-usul. Data ditulis sebagai
+   berkas JavaScript yang menempelkan dirinya ke `window.LG.katalog`.
+23. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
@@ -488,6 +539,13 @@ Rinciannya ada di `uji/README.md`.
 | Cetak ulang lembar 7–9: pratinjau, penghitung, dan hasil cetak sama-sama 3 lembar | lolos |
 | Pola QR berbeda antara keluarga rak dan dus | lolos |
 | Kolom Kadaluarsa ada dan bisa diisi | lolos |
+| Katalog CV (731) dan OL (245) termuat | lolos |
+| Pindah basis data: datanya benar-benar terpisah | lolos |
+| Tambah produk dari katalog jadi baris label | lolos |
+| Ketik barcode mengisi nama produk otomatis | lolos |
+| Dialog konfirmasi sendiri, bukan `window.confirm` | lolos |
+| Lokasi panjang dipatahkan dua baris, tidak menyusut jadi 3,38 mm | lolos |
+| 15 template rak: tidak ada elemen yang tumpang tindih | lolos |
 | Dijalankan lewat HTTP (server statis), bukan hanya `file://` | hasil sama persis |
 | Label tiang 25 × 100 mm (isi diputar 90°) | terukur 25 mm, jarak baris 27 mm |
 | Banner 100 × 140 mm | terukur 100 × 140 mm, 4 per A4, 60 label = 15 lembar |

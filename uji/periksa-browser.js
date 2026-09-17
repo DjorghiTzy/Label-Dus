@@ -229,7 +229,87 @@ function cek(nama, syarat, tambahan) {
       cek('lembar terakhir terisi penuh (tidak ada halaman kosong)', s && s.terakhir === 2, s ? s.terakhir + ' label' : '-');
     })
 
+    /* ---- dua basis data + katalog produk ---- */
+    .then(function () {
+      console.log('\n== Basis data & katalog ==');
+      return page.evaluate(function () {
+        var k = (window.LG && window.LG.katalog) || {};
+        return { cv: k.cv ? k.cv.produk.length : 0, ol: k.ol ? k.ol.produk.length : 0,
+                 tombol: document.querySelectorAll('#dbBtns .dbbtn').length };
+      })
+      .then(function (r) {
+        cek('katalog CV termuat', r.cv > 0, r.cv + ' produk');
+        cek('katalog OL termuat', r.ol > 0, r.ol + ' produk');
+        cek('ada dua tombol basis data', r.tombol === 2, r.tombol + ' tombol');
+      })
+      /* pemeriksaan sebelumnya berhenti di tab cetak; katalog ada di tab data */
+      .then(function () { return page.click('#tabData'); })
+      .then(function () { return page.waitForTimeout(400); })
+      /* CV sekarang berisi 60 baris hasil impor; pindah ke OL harus kosong */
+      .then(function () { return page.click('[data-db="ol"]'); })
+      .then(function () { return page.waitForTimeout(800); })
+      .then(function () { return page.$$eval('#gridBody tr', function (n) { return n.length; }); })
+      .then(function (n) { cek('pindah ke OL: datanya terpisah', n === 0, n + ' baris'); })
+      /* tambah produk dari katalog OL */
+      .then(function () { return page.click('#btnKatalog'); })
+      .then(function () { return page.waitForTimeout(500); })
+      .then(function () { return page.fill('#katCari', 'ACCOL'); })
+      .then(function () { return page.waitForTimeout(400); })
+      .then(function () { return page.click('#katAll'); })
+      .then(function () { return page.waitForTimeout(300); })
+      .then(function () { return page.click('#katOk'); })
+      .then(function () { return page.waitForTimeout(800); })
+      .then(function () { return page.$$eval('#gridBody tr', function (n) { return n.length; }); })
+      .then(function (n) { cek('produk katalog masuk jadi baris label', n > 0, n + ' baris'); })
+      /* isi otomatis dari barcode */
+      .then(function () { return page.click('#btnAdd'); })
+      .then(function () { return page.waitForTimeout(400); })
+      .then(function () { return page.fill('#gridBody tr:last-child input[data-k="kode"]', 'ADPCHR005'); })
+      .then(function () { return page.press('#gridBody tr:last-child input[data-k="kode"]', 'Tab'); })
+      .then(function () { return page.waitForTimeout(600); })
+      .then(function () {
+        return page.evaluate(function () {
+          var tr = document.querySelector('#gridBody tr:last-child');
+          return tr.querySelector('input[data-k="varian"]').value;
+        });
+      })
+      .then(function (v) { cek('ketik barcode mengisi nama produk', v.indexOf('Adapter Charger') === 0, v.slice(0, 32)); })
+      /* kembali ke CV, datanya harus utuh */
+      .then(function () { return page.click('[data-db="cv"]'); })
+      .then(function () { return page.waitForTimeout(800); })
+      .then(function () { return page.$$eval('#gridBody tr', function (n) { return n.length; }); })
+      .then(function (n) { cek('kembali ke CV: 60 baris tetap utuh', n === 60, n + ' baris'); });
+    })
+
+    /* ---- tidak ada lagi pop-up bawaan browser ---- */
+    .then(function () {
+      console.log('\n== Dialog konfirmasi ==');
+      var munculPopup = false;
+      page.on('dialog', function (d) { munculPopup = true; d.dismiss(); });
+      return page.evaluate(function () {
+        /* centang satu baris lalu tekan Hapus */
+        var cb = document.querySelector('#gridBody tr input[data-act="on"]');
+        if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change', { bubbles: true })); }
+      })
+      .then(function () { return page.click('#btnDelSel'); })
+      .then(function () { return page.waitForTimeout(500); })
+      .then(function () {
+        return page.evaluate(function () {
+          var m = document.getElementById('mAsk');
+          return { tampil: m && !m.hidden, judul: document.getElementById('askJudul').textContent };
+        });
+      })
+      .then(function (r) {
+        cek('dialog konfirmasi sendiri yang muncul', r.tampil, r.judul);
+        cek('bukan window.confirm bawaan browser', !munculPopup);
+      })
+      .then(function () { return page.click('#mAsk [data-close]'); })
+      .then(function () { return page.waitForTimeout(300); });
+    })
+
     /* ---- rentang lembar untuk cetak ulang ---- */
+    .then(function () { return page.click('#tabPrint'); })
+    .then(function () { return page.waitForTimeout(600); })
     .then(function () {
       console.log('\n== Rentang lembar ==');
       return page.evaluate(function () {
