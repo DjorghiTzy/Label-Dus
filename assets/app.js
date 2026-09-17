@@ -1936,7 +1936,7 @@
         markUndo('isi data contoh');
         rows = D.sampleRows();
         renderTable(); schedulePreview(); doSave();
-        toast('30 baris contoh dimasukkan.');
+        toast('20 baris contoh dimasukkan.');
       } else if (act === 'clear') {
         tanya({
           judul: 'Kosongkan seluruh data label?',
@@ -2046,7 +2046,7 @@
         markUndo('isi data contoh');
         rows = D.sampleRows();
         renderTable(); schedulePreview(); doSave();
-        toast('30 baris contoh dimasukkan.');
+        toast('20 baris contoh dimasukkan.');
       } else if (act === 'import') {
         showTab('data'); $('fileIn').value = ''; $('fileIn').click();
       } else if (act === 'data') {

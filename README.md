@@ -133,7 +133,7 @@ yang sudah memakai judul kolom aplikasi ini.
 
 ### Data contoh
 
-**Ekspor & cadangan ▾ → Isi dengan data contoh** memasukkan **30 baris**
+**Ekspor & cadangan ▾ → Isi dengan data contoh** memasukkan **20 baris**
 yang sengaja dibuat lengkap: barcode, nama, brand, tipe, golongan, area,
 prefix, lokasi final, rak/baris/posisi, QR payload, status mapping,
 supplier, GRN, tanggal, dan PIC.
@@ -148,8 +148,12 @@ menyiapkan data sendiri:
 - lima prefix bergaya gudang ACC (`A-CHR`, `B-CCH`, `C-CBL`, `D-PWB`,
   `E-TGL`) dengan lokasi final lengkap sampai posisi
 - satu `REVIEW TIPE` dan satu `REVIEW BARCODE`
-- sembilan baris bergaya dus (kode dus, dus ke, total dus) supaya
-  template Label dus juga ada isinya
+- lima baris bergaya dus (kode dus, dus ke, total dus) supaya template
+  Label dus juga ada isinya
+
+Barangnya karangan, tapi bentuk datanya persis seperti data asli gudang.
+Isinya tetap sama setiap kali ditekan, jadi bisa dipakai membandingkan
+hasil cetak antar percobaan.
 
 ### Generate lokasi rak
 
@@ -649,6 +653,7 @@ Rinciannya ada di `uji/README.md`.
 | Cetak dari Data label memakai lokasi tersimpan, 100 × 25 mm, 20 per A4 | lolos |
 | Bolak-balik ekspor → impor | 28/28 kolom kembali, tiap sel sama persis |
 | Impor `contoh/Format_Label_Dus.csv` | 20 baris, 28/28 kolom dikenali |
+| Data contoh 20 baris: semua punya lokasi final, tanpa kembar | lolos |
 | Workbook saran lokasi | sheet `Claude Import` terpilih di antara enam sheet |
 | `Brand`, `Tipe`, `QR Payload`, `Status Mapping` dikenali terpisah | lolos |
 | QR memakai `QR Payload` dari Excel apa adanya | lolos |
