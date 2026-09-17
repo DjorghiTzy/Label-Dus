@@ -130,10 +130,12 @@
           <div class="panel-scroll">
 
             <section class="grp">
-              <h3>Template label</h3>
-              <div class="famtabs" id="famTabs" role="tablist" aria-label="Jenis label">
-                <button type="button" class="famtab is-on" data-fam="rak" role="tab" aria-selected="true">Label rak</button>
-                <button type="button" class="famtab" data-fam="dus" role="tab" aria-selected="false">Label dus</button>
+              <div class="tpl-sticky">
+                <h3>Template label</h3>
+                <div class="famtabs" id="famTabs" role="tablist" aria-label="Jenis label">
+                  <button type="button" class="famtab is-on" data-fam="rak" role="tab" aria-selected="true">Label rak</button>
+                  <button type="button" class="famtab" data-fam="dus" role="tab" aria-selected="false">Label dus</button>
+                </div>
               </div>
               <p class="famnote" id="famNote"></p>
               <div class="tpl-picker" id="tplPicker" role="radiogroup" aria-label="Pilih template label"></div>
@@ -249,7 +251,13 @@
           </div>
           <div class="canvas-scroll" id="canvasScroll">
             <div class="stage-box" id="stageBox"><div class="stage" id="stage"></div></div>
-            <p class="canvas-empty" id="canvasEmpty" hidden>Belum ada baris yang dicentang untuk dicetak.</p>
+            <div class="canvas-empty" id="canvasEmpty" hidden>
+              <div class="ce-box">
+                <h2 id="ceJudul">Belum ada data label</h2>
+                <p id="cePesan"></p>
+                <div class="ce-aksi" id="ceAksi"></div>
+              </div>
+            </div>
           </div>
         </div>
 

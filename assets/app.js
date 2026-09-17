@@ -508,7 +508,7 @@
     applyBarcodes(stage);
     fitTexts(stage);
 
-    $('canvasEmpty').hidden = res.total > 0;
+    renderCanvasEmpty(res.total);
     $('cntLabel').textContent = res.total;
     $('cntPage').textContent = res.plan.sebagian
       ? res.plan.dicetak + '/' + res.pages : res.pages;
@@ -532,6 +532,40 @@
 
     setPageRule();
     applyZoom();
+  }
+
+  /* Tiga keadaan berbeda, tiga jalan keluar berbeda. */
+  function renderCanvasEmpty(total) {
+    var box = $('canvasEmpty');
+    box.hidden = total > 0;
+    if (total > 0) return;
+
+    var adaBaris = rows.length > 0;
+    var adaCentang = anyChecked();
+
+    if (!adaBaris) {
+      $('ceJudul').textContent = 'Belum ada data label';
+      $('cePesan').textContent = 'Masukkan data dulu, baru labelnya bisa dicetak. ' +
+        'Kalau cuma mau melihat-lihat dulu, pakai data contoh.';
+      $('ceAksi').innerHTML =
+        '<button type="button" class="btn btn-primary" data-ce="sample">Pakai data contoh</button>' +
+        '<button type="button" class="btn" data-ce="import">Impor Excel / CSV</button>' +
+        '<button type="button" class="btn" data-ce="data">Isi manual</button>';
+    } else if (!adaCentang) {
+      $('ceJudul').textContent = 'Belum ada baris yang dicentang';
+      $('cePesan').textContent = 'Ada ' + rows.length + ' baris, tapi belum ada yang dicentang. ' +
+        'Hanya baris bercentang yang ikut tercetak.';
+      $('ceAksi').innerHTML =
+        '<button type="button" class="btn btn-primary" data-ce="checkall">Centang semua ' + rows.length + ' baris</button>' +
+        '<button type="button" class="btn" data-ce="data">Ke tab Data label</button>';
+    } else {
+      /* ada baris bercentang tapi hasilnya nol — biasanya rentang lembar */
+      $('ceJudul').textContent = 'Tidak ada lembar pada rentang itu';
+      $('cePesan').textContent = 'Kotak "Cetak lembar" di panel kiri membatasi lembar yang dicetak. ' +
+        'Kosongkan kotak itu untuk mencetak semuanya.';
+      $('ceAksi').innerHTML =
+        '<button type="button" class="btn btn-primary" data-ce="resetrange">Kosongkan rentang lembar</button>';
+    }
   }
 
   function setPageRule() {
@@ -880,8 +914,8 @@
     var pp = T.PAPERS[t.paper] || T.PAPERS.a4;
     var w = pp.w, hh = pp.h, sw;
     if (t.orient === 'landscape') { sw = w; w = hh; hh = sw; }
-    var v = 34 * Math.sqrt((hh / w) / (297 / 210));
-    return Math.max(18, Math.min(46, Math.round(v)));
+    var v = 24 * Math.sqrt((hh / w) / (297 / 210));
+    return Math.max(13, Math.min(32, Math.round(v)));
   }
 
   function buildTplPicker() {
@@ -1262,6 +1296,31 @@
     on($('btnAutoFit'), 'click', function () {
       autoFit(); syncControls(); schedulePreview(); saveSoon();
       toast('Diisi ' + opts.cols + ' kolom × ' + opts.rows + ' baris.');
+    });
+
+    /* ---- tombol pada kanvas kosong ---- */
+    on($('canvasEmpty'), 'click', function (e) {
+      var b = e.target;
+      while (b && b !== this && !(b.getAttribute && b.getAttribute('data-ce'))) b = b.parentNode;
+      if (!b || b === this) return;
+      var act = b.getAttribute('data-ce');
+      if (act === 'sample') {
+        markUndo('isi data contoh');
+        rows = D.sampleRows();
+        renderTable(); schedulePreview(); doSave();
+        toast('12 baris contoh dimasukkan.');
+      } else if (act === 'import') {
+        showTab('data'); $('fileIn').value = ''; $('fileIn').click();
+      } else if (act === 'data') {
+        showTab('data');
+      } else if (act === 'checkall') {
+        markUndo('centang semua baris');
+        for (var i = 0; i < rows.length; i++) rows[i]._on = true;
+        renderTable(); schedulePreview(); doSave();
+      } else if (act === 'resetrange') {
+        opts.pageFrom = ''; opts.pageTo = '';
+        syncControls(); schedulePreview(); saveSoon();
+      }
     });
 
     /* ---- zoom ---- */

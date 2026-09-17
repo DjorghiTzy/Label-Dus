@@ -124,8 +124,9 @@ dengan penggaris sungguhan:
 
 ## Template label
 
-Ada **dua keluarga** berisi 30 template, dan tab di atas pemilih template
-memisahkan keduanya.
+Ada **dua keluarga** berisi 30 template. Tab **Label rak / Label dus** di
+atas pemilih memisahkan keduanya, dan tab itu menempel di atas panel —
+tidak ikut tergulir hilang saat menelusuri daftar template.
 Yang dipilih tersimpan, jadi besok aplikasi terbuka di keluarga yang sama.
 
 ### Label rak — 15 template
@@ -402,7 +403,19 @@ dicatat di sini:
    saat mencetak, dan satu gudang biasanya punya banyak baris dengan isi
    QR yang sama. Cache dibatasi 4000 entri supaya tidak menggerus ingatan
    browser pada data besar.
-17. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+17. **Tab keluarga dibuat menempel, dan pemilih template dibatasi
+   tingginya.** Lima belas kartu setinggi 91 px memakan 812 px dan
+   mendorong pengaturan "Kertas" sampai 1088 px — jauh di luar layar
+   pada jendela 910 px. Lebih buruk lagi, tab "Label rak / Label dus"
+   tergulir hilang setelah 120 px, sehingga keluarga kedua praktis tidak
+   terlihat. Sekarang tabnya menempel, kartunya diringkas jadi 68 px,
+   dan pemilihnya digulir sendiri — "Kertas" turun ke 648 px.
+18. **Kanvas kosong menawarkan jalan keluar, bukan cuma pemberitahuan.**
+   Layar pertama yang dilihat orang saat membuka aplikasi adalah kanvas
+   kosong. Sekarang ia membedakan tiga keadaan — belum ada data, ada data
+   tapi belum dicentang, dan rentang lembar yang mengosongkan hasil —
+   dan masing-masing memberi tombol yang langsung menyelesaikannya.
+19. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
