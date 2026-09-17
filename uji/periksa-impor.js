@@ -48,8 +48,8 @@ table.headers.forEach(function (h, i) {
 });
 
 var gagal = 0;
-function cek(nama, syarat) {
-  console.log('  ' + (syarat ? 'OK   ' : 'GAGAL') + '  ' + nama);
+function cek(nama, syarat, tambahan) {
+  console.log('  ' + (syarat ? 'OK   ' : 'GAGAL') + '  ' + nama + (tambahan ? '  — ' + tambahan : ''));
   if (!syarat) gagal++;
 }
 console.log('\nDaftar periksa:');
@@ -59,8 +59,17 @@ cek('tanggal seri Excel 46126 terbaca 14-04-2026', D.fmtDate(baris[0].tanggal) =
 cek('kolom "SKU/Kode" masuk ke Kode', baris[0].kode === '1061');
 cek('kolom "Nama Barang" masuk ke SKU', baris[0].sku === 'MC01');
 cek('kolom "Dus Ke" masuk ke Kode dus', baris[0].kodeDus === 'MC01-1W');
-cek('kolom "No" dilewati', map[0] === '');
-cek('kolom "Text Dus (x/total)" dilewati', map[7] === '');
+function petaUntuk(judul) {
+  var i = table.headers.indexOf(judul);
+  return i < 0 ? '(kolom tidak ada)' : (map[i] || '');
+}
+cek('kolom "No" dilewati', petaUntuk('No') === '');
+cek('kolom "Text Dus (x/total)" dilewati', petaUntuk('Text Dus (x/total)') === '');
+cek('kolom "Kadaluarsa" dikenali', petaUntuk('Kadaluarsa') === 'kadaluarsa');
+/* seri 46700 = 574 hari setelah 46126 (14-04-2026) = 09-11-2027 */
+cek('tanggal kadaluarsa terbaca', baris[0].kadaluarsa === '2027-11-09',
+    D.fmtDate(baris[0].kadaluarsa));
+cek('baris tanpa kadaluarsa tetap kosong', baris[1].kadaluarsa === '');
 cek('tidak ada baris tanpa tanggal', baris.filter(function (r) { return !r.tanggal; }).length === 0);
 cek('nilai turunan dusText benar', D.dusText(baris[0]) === 'MC01-1W/1');
 cek('nilai turunan bigCode benar', D.bigCode(baris[0]) === '1061');
@@ -77,6 +86,42 @@ cek('pecah per dus: Label ID diberi akhiran', pecah[2].labelId === 'LBL-001-3');
 cek('tanggal 14/04/2026 terbaca', D.parseDate('14/04/2026') === '2026-04-14');
 cek('tanggal 14-04-2026 terbaca', D.parseDate('14-04-2026') === '2026-04-14');
 cek('tanggal 2026-04-14 tetap', D.parseDate('2026-04-14') === '2026-04-14');
+
+/* ---- bolak-balik: ekspor lalu impor kembali harus utuh ---- */
+console.log('\nBolak-balik ekspor -> impor:');
+var asal = baris.slice(0, 20);
+var aoa = [];
+var judul = D.COLUMNS.map(function (c) { return c.t; });
+aoa.push(judul);
+asal.forEach(function (r) {
+  aoa.push(D.COLUMNS.map(function (c) {
+    return c.kind === 'date' ? D.fmtDate(r[c.k]) : (r[c.k] == null ? '' : String(r[c.k]));
+  }));
+});
+var csv = aoa.map(function (baris) {
+  return baris.map(function (v) {
+    return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }).join(',');
+}).join('\r\n');
+
+var t2 = D.matrixToTable(D.parseDelimited(csv));
+var map2 = D.guessMapping(t2.headers);
+var balik = D.applyMapping(t2, map2);
+
+cek('semua ' + judul.length + ' kolom dikenali saat diimpor kembali',
+    map2.filter(Boolean).length === judul.length,
+    map2.filter(Boolean).length + '/' + judul.length + ' dikenali');
+cek('jumlah baris tetap', balik.length === asal.length, balik.length + ' vs ' + asal.length);
+
+var beda = [];
+for (var bi = 0; bi < asal.length; bi++) {
+  D.COLUMNS.forEach(function (c) {
+    var a = String(asal[bi][c.k] == null ? '' : asal[bi][c.k]);
+    var b = String(balik[bi][c.k] == null ? '' : balik[bi][c.k]);
+    if (a !== b && beda.length < 5) beda.push('baris ' + (bi + 1) + ' kolom ' + c.t + ': "' + a + '" -> "' + b + '"');
+  });
+}
+cek('isi tiap sel sama persis setelah bolak-balik', beda.length === 0, beda.join(' | '));
 
 console.log('\ngagal: ' + gagal);
 process.exit(gagal ? 1 : 0);

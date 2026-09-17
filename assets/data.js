@@ -379,8 +379,19 @@
      ------------------------------------------------------------------ */
   function guessMapping(headers) {
     var map = [], i, g, taken = {};
+    var rapi = [];
+    for (i = 0; i < headers.length; i++) rapi.push(norm(headers[i]));
+
+    /* "Dus Ke" di file Excel lama berisi kode dus (MC01-1W), jadi
+       aliasnya mengarah ke kodeDus. Tapi ekspor aplikasi ini punya
+       "Kode dus" DAN "Dus ke" sebagai dua kolom berbeda. Kalau keduanya
+       ada di file yang sama, "Dus ke" pasti nomor urut — tanpa aturan
+       ini, mengekspor lalu mengimpor kembali kehilangan kolom itu. */
+    var adaKodeDus = false;
+    for (i = 0; i < rapi.length; i++) if (rapi[i] === 'kodedus') adaKodeDus = true;
+
     for (i = 0; i < headers.length; i++) {
-      g = guessKey(headers[i]);
+      g = (adaKodeDus && rapi[i] === 'duske') ? 'dusKe' : guessKey(headers[i]);
       if (g === '__skip__' || !g) g = '';
       if (g && taken[g]) g = '';       /* satu kolom tujuan hanya sekali */
       if (g) taken[g] = 1;
