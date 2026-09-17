@@ -92,6 +92,12 @@ dari Total dus — lebih murah daripada baru sadar setelah 60 label
 tercetak. Baris tanpa lokasi hanya disebut sebagai catatan, karena
 kolomnya sengaja dikosongkan untuk ditulis tangan.
 
+**Mencetak ulang sebagian.** Kalau kertas macet di lembar 7, tidak perlu
+mengulang semuanya: isi **Cetak lembar ke- 7 sampai 9** di panel kiri.
+Pratinjau, penghitung, dan hasil cetaknya ikut menyesuaikan, dan
+penomoran lembar tetap memakai nomor aslinya ("Lembar 7 / 30").
+Kosongkan kedua kotak itu untuk kembali mencetak semuanya.
+
 **Di dialog printer, tiga hal ini wajib:**
 
 - Margin: **None** / **Tidak ada**
@@ -114,10 +120,11 @@ dengan penggaris sungguhan:
 
 ## Template label
 
-Ada **dua keluarga**, dan tab di atas pemilih template memisahkan keduanya.
+Ada **dua keluarga** berisi 30 template, dan tab di atas pemilih template
+memisahkan keduanya.
 Yang dipilih tersimpan, jadi besok aplikasi terbuka di keluarga yang sama.
 
-### Label rak — 14 template
+### Label rak — 15 template
 
 Ditempel di bibir rak, tiang, atau lorong. Isi utamanya **kode lokasi**,
 dibuat sebesar mungkin karena dibaca sambil berjalan.
@@ -133,13 +140,14 @@ dibuat sebesar mungkin karena dibaca sambil berjalan.
 | Papan lorong | 1 per A4 mendatar | 1 | Papan gantung penanda lorong |
 | Label tiang | 25 × 100 mm tegak | 14 | Tiang rak, dibaca dari samping |
 | Rak FIFO | 100 × 38 mm | 14 | Tanggal masuk besar, stok lama diambil duluan |
+| Rak FEFO | 100 × 38 mm | 14 | Tanggal kadaluarsa besar, untuk barang bertanggal |
 | Rak QR | 2 × 6 per A4 | 12 | Gudang yang serba scan |
 | Rak barcode | 2 × 8 per A4 | 16 | Pemindai laras |
 | Rak blok warna | 2 × 6 per A4 | 12 | Membagi gudang jadi area berwarna |
 | Papan bin | 1 × 4 per A4 | 4 | Papan selebar kertas untuk satu bin |
 | Rak proporsional | 2 × 6 per A4 | 12 | Kertas tidak baku — ukuran ikut kertas |
 
-### Label dus — 14 template
+### Label dus — 15 template
 
 Ditempel di sisi dus. Isi utamanya **kode barang**, ditambah qty, nomor
 dus, dan kolom lokasi untuk ditulis tangan.
@@ -158,6 +166,7 @@ dus, dan kolom lokasi untuk ditulis tangan.
 | Kartu gantung | 2 × 2 per A4 | 4 | Kartu status berlubang |
 | Dus barang pecah | 2 × 2 per A4 | 4 | Tanda stensil: jangan dibanting, jauhkan dari air |
 | Dus FIFO | 2 × 3 per A4 | 6 | Stok yang keluar menurut urutan datang |
+| Dus FEFO | 2 × 3 per A4 | 6 | Tanggal kadaluarsa besar, untuk barang bertanggal |
 | Dus periksa QC | 2 × 3 per A4 | 6 | Ada kotak centang, dicentang langsung di dus |
 | Dus rute simpan | 2 × 2 per A4 | 4 | Dari supplier menuju lokasi rak |
 
@@ -259,6 +268,19 @@ template:
   ada isi yang terpotong, baik keluar dari label maupun di dalam
   bagiannya sendiri.
 
+### Kolom Kadaluarsa
+
+Selain Tanggal (tanggal terima), ada kolom **Kadaluarsa**. Keduanya
+menerima angka seri Excel maupun tulisan `30-01-2027` dan `30/01/2027`.
+Nama kolom yang dikenali saat impor: `Kadaluarsa`, `Kedaluwarsa`,
+`Expired`, `Exp`, `Exp Date`, `Best Before`, `Masa Berlaku`,
+`Berlaku Sampai`.
+
+Dua template memakainya sebagai isi terbesar: **Rak FEFO** dan
+**Dus FEFO**. Bedanya dengan FIFO: FIFO memakai tanggal terima (yang
+datang duluan keluar duluan), FEFO memakai tanggal kadaluarsa (yang
+kadaluarsa duluan keluar duluan).
+
 ### Menambah kolom data baru
 
 1. Tambahkan satu baris di `COLUMNS` pada `assets/data.js`.
@@ -356,12 +378,39 @@ dicatat di sini:
 12. **Urungkan hanya mencatat perubahan susunan baris**, bukan setiap
    ketikan. Di dalam kotak isian, Ctrl+Z bawaan browser sudah lebih tepat
    dan lebih halus; mengambil alihnya justru merugikan.
-13. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
+13. **Pola QR berbeda per keluarga.** Label rak memakai
+   `{lokasi}|{sku}|{qty}` karena yang dipindai di rak adalah lokasinya;
+   label dus memakai `{sku}|{kodeDus}|{qty}|{lokasi}` karena yang
+   dipindai di dus adalah barangnya. Tetap bisa diubah sendiri.
+14. **Ringkasan sebelum cetak tidak lagi membangun HTML.** Dulu ia
+   memanggil fungsi yang merender seluruh lembar hanya untuk membaca
+   angkanya, lalu membuang hasilnya — untuk 1500 baris itu sekitar dua
+   detik terbuang. Sekarang angkanya dihitung langsung: 4 ms.
+15. **QR disimpan sementara (cache).** Membuat QR adalah bagian termahal
+   saat mencetak, dan satu gudang biasanya punya banyak baris dengan isi
+   QR yang sama. Cache dibatasi 4000 entri supaya tidak menggerus ingatan
+   browser pada data besar.
+16. **Pemeriksaan ditaruh di dalam repo, bukan hanya dijalankan sekali.**
    README menyebut ada pemeriksaan, jadi filenya harus ada dan bisa
    dijalankan ulang. Dua dari tiga sengaja dibuat tanpa pustaka apa pun
    supaya tetap bisa dipakai di komputer yang tidak boleh memasang npm.
 
 ---
+
+## Kecepatan pada data besar
+
+Diukur di Chromium, template Strip rak 100 × 25 (20 label per lembar):
+
+| Baris | Tabel | Ringkasan cetak | Bangun + kirim ke printer |
+|---|---|---|---|
+| 500 | 30 ms | 6 ms | 269 ms (25 lembar) |
+| 1500 | 90 ms | 4 ms | 551 ms (75 lembar) |
+| 1500, tiap QR unik | 90 ms | 5 ms | 1,4 detik (75 lembar) |
+| 3000, tiap QR unik | 257 ms | 3 ms | 2,2 detik (150 lembar) |
+
+Pratinjau dibatasi 30 lembar supaya tetap ringan; yang dicetak tetap
+semuanya. Kalau lembar yang disiapkan lebih dari 8, muncul pesan
+"Menyiapkan N lembar…" supaya tidak terlihat seperti menggantung.
 
 ## Menjalankan pemeriksaan
 
@@ -406,8 +455,12 @@ Rinciannya ada di `uji/README.md`.
 | `uji/periksa-browser.js` berhenti rapi tanpa Playwright | lolos, keluar dengan kode 0 |
 | Layar 390 px | semua tombol terjangkau, halaman tidak menggulir ke samping |
 | `console.error` sepanjang alur impor → edit → saring → cetak | tidak ada |
-| 28 template, isi tidak melebihi kotak label | lolos |
-| 28 template, tidak ada isi terpotong di dalam bagiannya | lolos |
-| Anggaran tinggi 10u untuk 19 template bermesin bersama | lolos |
+| 30 template, isi tidak melebihi kotak label | lolos |
+| 30 template, tidak ada isi terpotong di dalam bagiannya | lolos |
+| Anggaran tinggi 10u untuk 21 template bermesin bersama | lolos |
+| Cetak ulang lembar 7–9: pratinjau, penghitung, dan hasil cetak sama-sama 3 lembar | lolos |
+| Pola QR berbeda antara keluarga rak dan dus | lolos |
+| Kolom Kadaluarsa ada dan bisa diisi | lolos |
+| Dijalankan lewat HTTP (server statis), bukan hanya `file://` | hasil sama persis |
 | Label tiang 25 × 100 mm (isi diputar 90°) | terukur 25 mm, jarak baris 27 mm |
 | Banner 100 × 140 mm | terukur 100 × 140 mm, 4 per A4, 60 label = 15 lembar |

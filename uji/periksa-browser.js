@@ -229,8 +229,91 @@ function cek(nama, syarat, tambahan) {
       cek('lembar terakhir terisi penuh (tidak ada halaman kosong)', s && s.terakhir === 2, s ? s.terakhir + ' label' : '-');
     })
 
-    /* ---- urungkan ---- */
+    /* ---- rentang lembar untuk cetak ulang ---- */
+    .then(function () {
+      console.log('\n== Rentang lembar ==');
+      return page.evaluate(function () {
+        document.getElementById('inPageFrom').value = '7';
+        document.getElementById('inPageFrom').dispatchEvent(new Event('change', { bubbles: true }));
+        document.getElementById('inPageTo').value = '9';
+        document.getElementById('inPageTo').dispatchEvent(new Event('change', { bubbles: true }));
+      })
+      .then(function () { return page.waitForTimeout(700); })
+      .then(function () {
+        return page.evaluate(function () {
+          var s = document.querySelectorAll('#stage .sheet');
+          return { digambar: s.length,
+                   pertama: s.length ? s[0].getAttribute('data-page') : '',
+                   penghitung: document.getElementById('cntPage').textContent };
+        });
+      })
+      .then(function (r) {
+        cek('rentang 7-9 menggambar 3 lembar', r.digambar === 3, r.digambar + ' lembar');
+        cek('lembar pertama adalah lembar 7', /Lembar 7 /.test(r.pertama), r.pertama);
+        cek('penghitung menunjukkan sebagian', r.penghitung.indexOf('/') > 0, r.penghitung);
+      })
+      .then(function () {
+        return page.evaluate(function () {
+          window.__snap2 = null;
+          window.print = function () {
+            var s = document.querySelectorAll('#paper .sheet');
+            window.__snap2 = { lembar: s.length, pertama: s.length ? s[0].getAttribute('data-page') : '' };
+          };
+        });
+      })
+      .then(function () { return page.click('#btnPrint'); })
+      .then(function () { return page.waitForTimeout(400); })
+      .then(function () { return page.click('#sumOk'); })
+      .then(function () { return page.waitForTimeout(900); })
+      .then(function () { return page.evaluate(function () { return window.__snap2; }); })
+      .then(function (s) {
+        cek('yang dikirim ke printer hanya 3 lembar', s && s.lembar === 3, s ? s.lembar + ' lembar' : '-');
+        cek('dimulai dari lembar 7', s && /Lembar 7 /.test(s.pertama), s ? s.pertama : '-');
+      })
+      /* kembalikan ke semua */
+      .then(function () {
+        return page.evaluate(function () {
+          ['inPageFrom', 'inPageTo'].forEach(function (id) {
+            var n = document.getElementById(id);
+            n.value = ''; n.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+        });
+      })
+      .then(function () { return page.waitForTimeout(600); })
+      .then(function () { return page.evaluate(function () { return document.getElementById('cntPage').textContent; }); })
+      .then(function (t) { cek('dikosongkan kembali ke 30 lembar', t === '30', t); });
+    })
+
+    /* ---- pola QR mengikuti keluarga ---- */
+    .then(function () {
+      console.log('\n== Pola QR per keluarga ==');
+      return page.click('[data-fam="rak"]')
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () { return page.inputValue('#inQRPattern'); })
+        .then(function (v) { cek('label rak memakai QR lokasi', v.indexOf('{lokasi}') === 0, v); })
+        .then(function () { return page.click('[data-fam="dus"]'); })
+        .then(function () { return page.waitForTimeout(400); })
+        .then(function () { return page.inputValue('#inQRPattern'); })
+        .then(function (v) { cek('label dus memakai QR barang', v.indexOf('{sku}') === 0, v); });
+    })
+
+    /* ---- kolom kadaluarsa ---- */
     .then(function () { return page.click('#tabData'); })
+    .then(function () { return page.waitForTimeout(400); })
+    .then(function () {
+      return page.evaluate(function () {
+        var th = [].slice.call(document.querySelectorAll('#gridHead th')).map(function (n) { return n.textContent; });
+        return { ada: th.filter(function (t) { return /Kadaluarsa/i.test(t); }).length,
+                 isian: !!document.querySelector('#gridBody input[data-k="kadaluarsa"]') };
+      });
+    })
+    .then(function (r) {
+      console.log('\n== Kolom kadaluarsa ==');
+      cek('kolom Kadaluarsa ada di tabel', r.ada === 1, r.ada + ' kolom');
+      cek('selnya bisa diisi', r.isian);
+    })
+
+    /* ---- urungkan ---- */
     .then(function () { return page.waitForTimeout(300); })
     .then(function () { return page.click('#btnSplit'); })
     .then(function () { return page.waitForTimeout(500); })

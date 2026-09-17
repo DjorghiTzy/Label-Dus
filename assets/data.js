@@ -13,6 +13,7 @@
   var COLUMNS = [
     { k: 'labelId',  t: 'Label ID',    w: 92,  cls: 'code' },
     { k: 'tanggal',  t: 'Tanggal',     w: 96,  cls: '', kind: 'date' },
+    { k: 'kadaluarsa', t: 'Kadaluarsa', w: 100, cls: '', kind: 'date' },
     { k: 'supplier', t: 'Supplier',    w: 130 },
     { k: 'grn',      t: 'No GRN / SJ', w: 110, cls: 'code' },
     { k: 'kode',     t: 'Kode',        w: 92,  cls: 'code' },
@@ -32,7 +33,8 @@
   /* Kolom yang dianggap "penting". Baris yang seluruh kolom pentingnya
      kosong dibuang saat impor — di file lama ada puluhan baris ekor
      yang hanya berisi zona/status/PIC. */
-  var PENTING = ['kode', 'sku', 'varian', 'qty', 'kodeDus', 'totalDus', 'lokasi', 'grn', 'supplier', 'tanggal'];
+  var PENTING = ['kode', 'sku', 'varian', 'qty', 'kodeDus', 'totalDus', 'lokasi', 'grn',
+                 'supplier', 'tanggal', 'kadaluarsa'];
 
   /* ------------------------------------------------------------------
      ALIAS NAMA KOLOM
@@ -43,6 +45,10 @@
 
     tanggal: 'tanggal', tanggalterima: 'tanggal', tglterima: 'tanggal', tgl: 'tanggal',
     tanggalmasuk: 'tanggal', date: 'tanggal', tanggaldatang: 'tanggal',
+
+    kadaluarsa: 'kadaluarsa', kedaluwarsa: 'kadaluarsa', expired: 'kadaluarsa', exp: 'kadaluarsa',
+    expdate: 'kadaluarsa', tglkadaluarsa: 'kadaluarsa', tanggalkadaluarsa: 'kadaluarsa',
+    bestbefore: 'kadaluarsa', masaberlaku: 'kadaluarsa', berlakusampai: 'kadaluarsa',
 
     supplier: 'supplier', pemasok: 'supplier', vendor: 'supplier', namasupplier: 'supplier',
 
@@ -392,7 +398,7 @@
         key = map[j];
         if (!key) continue;
         v = src[j];
-        if (key === 'tanggal') r.tanggal = parseDate(v);
+        if (key === 'tanggal' || key === 'kadaluarsa') r[key] = parseDate(v);
         else if (key === 'dusKe' || key === 'totalDus') {
           v = String(v == null ? '' : v).trim();
           r[key] = v === '' ? '' : (isFinite(parseFloat(v)) ? String(parseInt(parseFloat(v), 10)) : v);
@@ -424,7 +430,8 @@
       line = [];
       for (j = 0; j < COLUMNS.length; j++) {
         var k = COLUMNS[j].k;
-        line.push(k === 'tanggal' ? fmtDate(rows[i][k]) : (rows[i][k] == null ? '' : rows[i][k]));
+        line.push((k === 'tanggal' || k === 'kadaluarsa')
+          ? fmtDate(rows[i][k]) : (rows[i][k] == null ? '' : rows[i][k]));
       }
       line.push(dusText(rows[i]));
       aoa.push(line);
@@ -502,6 +509,7 @@
       r.tanggal = '2026-04-14';
       r.supplier = 'MEEPLUS';
       r.grn = 'GRN-2604-' + pad2(i + 1);
+      if (i % 3 === 0) r.kadaluarsa = '2027-0' + ((i % 9) + 1) + '-30';
       r.kode = s[0]; r.sku = s[1]; r.varian = s[2]; r.qty = s[3];
       r.kodeDus = s[4]; r.dusKe = s[5]; r.totalDus = s[6];
       r.lokasi = s[7]; r.zona = s[8]; r.status = s[9];

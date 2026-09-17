@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="description" content="Membuat dan mencetak label dus dan label rak gudang dengan ukuran yang pasti saat dicetak. Jalan tanpa internet.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#18212C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EDF0F4" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%232B3D51'/%3E%3Cpath d='M-6 10L10-6M-2 22L22-2M6 30L30 6M18 34L34 18' stroke='%23E8A00C' stroke-width='6'/%3E%3C/svg%3E">
 <title>Label Dus &amp; Rak — Label Gudang</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <link rel="stylesheet" href="assets/app.css">
@@ -182,6 +187,14 @@
                 </label>
                 <label class="fld"><span>Salinan per label</span><input type="number" id="inCopies" min="1" max="50" step="1"></label>
               </div>
+              <div class="row">
+                <label class="fld"><span>Cetak lembar ke-</span>
+                  <input type="number" id="inPageFrom" min="1" step="1" placeholder="1"></label>
+                <label class="fld"><span>sampai lembar</span>
+                  <input type="number" id="inPageTo" min="1" step="1" placeholder="semua"></label>
+              </div>
+              <p class="hint">Kosongkan keduanya untuk mencetak semua. Isi kalau perlu
+                <b>mencetak ulang</b> sebagian, misalnya setelah kertas macet di lembar 7.</p>
               <p class="warn" id="fitWarn" hidden></p>
             </section>
 

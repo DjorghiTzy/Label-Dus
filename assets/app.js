@@ -21,7 +21,7 @@
     paper: 'a4', orient: 'portrait', paperW: 100, paperH: 150,
     lock: true, cellW: 100, cellH: 25,
     cols: 2, rows: 10, margin: 4, gap: 2,
-    scale: 100, copies: 1,
+    scale: 100, copies: 1, pageFrom: '', pageTo: '',
     qr: true, qrPattern: '{sku}|{kodeDus}|{qty}|{lokasi}',
     barcode: false, blankLokasi: false, meta: false, cut: false, saveInk: false
   };
@@ -384,19 +384,47 @@
     };
   }
 
-  /* Bangun HTML seluruh lembar. limit = jumlah lembar maksimum (0 = semua). */
-  function buildSheets(limit) {
-    var tpl = T.byKey(opts.tpl);
+  /* Menghitung jumlah label dan lembar TANPA membangun HTML-nya.
+     Ringkasan sebelum cetak cuma butuh angka; dulu ia membangun seluruh
+     lembar lalu membuangnya — 2 detik terbuang untuk 1500 baris. */
+  function planSheets() {
     var lay = layout();
-    var o = renderOpts();
     var list = printableRows();
     var copies = Math.max(1, Math.min(50, parseInt(opts.copies, 10) || 1));
-    var items = [], i, c;
-    for (i = 0; i < list.length; i++) for (c = 0; c < copies; c++) items.push(list[i]);
-
+    var total = list.length * copies;
     var per = Math.max(1, opts.cols * opts.rows);
-    var pages = Math.ceil(items.length / per) || 0;
-    var shown = limit ? Math.min(pages, limit) : pages;
+    var pages = Math.ceil(total / per) || 0;
+
+    /* rentang lembar — untuk mencetak ulang setelah kertas macet */
+    var from = Math.max(1, parseInt(opts.pageFrom, 10) || 1);
+    var to = parseInt(opts.pageTo, 10) || pages;
+    if (to > pages) to = pages;
+    if (from > pages) from = pages || 1;
+    if (to < from) to = from;
+    var sebagian = pages > 0 && (from > 1 || to < pages);
+
+    return { lay: lay, list: list, copies: copies, total: total,
+             per: per, pages: pages, from: from, to: to,
+             dicetak: pages ? (to - from + 1) : 0, sebagian: sebagian };
+  }
+
+  /* Bangun HTML lembar. limit = jumlah lembar maksimum yang digambar
+     (0 = semua). Rentang lembar tetap dihormati. */
+  function buildSheets(limit) {
+    var tpl = T.byKey(opts.tpl);
+    var o = renderOpts();
+    var plan = planSheets();
+    var lay = plan.lay;
+
+    var items = [], i, c;
+    for (i = 0; i < plan.list.length; i++) {
+      for (c = 0; c < plan.copies; c++) items.push(plan.list[i]);
+    }
+
+    var per = plan.per;
+    var mulai = plan.pages ? plan.from - 1 : 0;
+    var akhir = plan.pages ? plan.to - 1 : -1;
+    if (limit && akhir - mulai + 1 > limit) akhir = mulai + limit - 1;
 
     var sheetStyle = 'width:' + lay.paper.w + 'mm;height:' + lay.paper.h + 'mm;--k:' + o.k;
     var gridStyle = 'grid-template-columns:repeat(' + opts.cols + ',' + lay.cell.w + 'mm);' +
@@ -405,9 +433,10 @@
                     'padding:' + lay.padY + 'mm ' + lay.padX + 'mm;';
     var cls = 'sheet' + (opts.cut ? ' cut' : '') + (opts.saveInk ? ' ink' : '');
 
-    var out = [], p, n, row;
-    for (p = 0; p < shown; p++) {
-      out.push('<div class="' + cls + '" style="' + sheetStyle + '" data-page="Lembar ' + (p + 1) + ' / ' + pages + '">');
+    var out = [], p, n, row, digambar = 0;
+    for (p = mulai; p <= akhir; p++) {
+      out.push('<div class="' + cls + '" style="' + sheetStyle + '" data-page="Lembar ' +
+               (p + 1) + ' / ' + plan.pages + '">');
       out.push('<div class="sheet-grid" style="' + gridStyle + '">');
       for (n = 0; n < per; n++) {
         row = items[p * per + n];
@@ -416,9 +445,11 @@
                  tpl.render(row, o) + '</div>');
       }
       out.push('</div></div>');
+      digambar++;
     }
 
-    return { html: out.join(''), pages: pages, perPage: per, total: items.length, shown: shown, lay: lay };
+    return { html: out.join(''), pages: plan.pages, perPage: per, total: plan.total,
+             shown: digambar, lay: lay, plan: plan };
   }
 
   function applyBarcodes(root) {
@@ -479,7 +510,8 @@
 
     $('canvasEmpty').hidden = res.total > 0;
     $('cntLabel').textContent = res.total;
-    $('cntPage').textContent = res.pages;
+    $('cntPage').textContent = res.plan.sebagian
+      ? res.plan.dicetak + '/' + res.pages : res.pages;
     $('cntPer').textContent = res.perPage;
     $('cntSize').textContent = res.lay.cell.w + ' × ' + res.lay.cell.h + ' mm · kertas ' +
                                res.lay.paper.w + ' × ' + res.lay.paper.h + ' mm';
@@ -612,7 +644,7 @@
 
   /* ---- ringkasan sebelum cetak ---- */
   function showSummary() {
-    var res = buildSheets(0), tpl = T.byKey(opts.tpl), ps = res.lay.paper;
+    var res = planSheets(), tpl = T.byKey(opts.tpl), ps = res.lay.paper;
     if (!res.total) { toast('Belum ada baris yang dicentang untuk dicetak.'); return; }
     var paperName = opts.paper === 'custom'
       ? ps.w + ' × ' + ps.h + ' mm (ukuran sendiri)'
@@ -624,10 +656,15 @@
       '<li><span>Template</span><b>' + T.esc(tpl.nama) + '</b></li>' +
       '<li><span>Ukuran satu label</span><b>' + res.lay.cell.w + ' × ' + res.lay.cell.h + ' mm</b></li>' +
       '<li><span>Jumlah label</span><b>' + res.total + '</b></li>' +
-      '<li><span>Label per lembar</span><b>' + res.perPage + '</b></li>' +
-      '<li><span>Jumlah lembar</span><b>' + res.pages + '</b></li>' +
+      '<li><span>Label per lembar</span><b>' + res.per + '</b></li>' +
+      '<li><span>Jumlah lembar</span><b>' +
+        (res.sebagian ? res.dicetak + ' (lembar ' + res.from + '–' + res.to + ' dari ' + res.pages + ')'
+                      : res.pages) + '</b></li>' +
       '<li><span>Kertas di dialog printer</span><b>' + T.esc(paperName) + '</b></li>' +
       '</ul>' +
+      (res.sebagian ? '<div class="sumtip"><b>Hanya sebagian yang dicetak:</b> lembar ' +
+        res.from + ' sampai ' + res.to + ' dari ' + res.pages +
+        '. Kosongkan kotak "Cetak lembar" di panel kiri untuk mencetak semuanya.</div>' : '') +
       auditHTML(printableRows()) +
       '<div class="sumtip"><b>Sebelum menekan Print, pastikan:</b><ul>' +
       '<li>Margin: <b>None</b> / <b>Tidak ada</b></li>' +
@@ -883,7 +920,11 @@
       else { opts.lock = false; }
       if (t.opts) {
         opts.qr = !!t.opts.qr; opts.barcode = !!t.opts.barcode; opts.meta = !!t.opts.meta;
+        /* label rak sebaiknya ber-QR lokasi, label dus ber-QR barang */
+        opts.qrPattern = t.opts.qrPattern ||
+          (t.fam === 'rak' ? '{lokasi}|{sku}|{qty}' : '{sku}|{kodeDus}|{qty}|{lokasi}');
       }
+      opts.pageFrom = ''; opts.pageTo = '';
     }
     if (!opts.lock) { var cs = cellSize(); opts.cellW = cs.w; opts.cellH = cs.h; }
     syncControls();
@@ -920,6 +961,8 @@
     $('inScale').value = opts.scale;
     $('outScale').textContent = opts.scale + '%';
     $('inCopies').value = opts.copies;
+    $('inPageFrom').value = opts.pageFrom;
+    $('inPageTo').value = opts.pageTo;
 
     $('chkQR').checked = !!opts.qr;
     $('chkQR').disabled = !T.hasQR;
@@ -950,6 +993,8 @@
     opts.gap = Math.max(0, num($('inGap').value, 0));
     opts.scale = Math.max(70, Math.min(140, parseInt($('inScale').value, 10) || 100));
     opts.copies = Math.max(1, Math.min(50, parseInt($('inCopies').value, 10) || 1));
+    opts.pageFrom = $('inPageFrom').value.replace(/[^0-9]/g, '');
+    opts.pageTo = $('inPageTo').value.replace(/[^0-9]/g, '');
     opts.qr = $('chkQR').checked;
     opts.qrPattern = $('inQRPattern').value;
     opts.barcode = $('chkBarcode').checked;
@@ -1202,6 +1247,7 @@
 
     ['selPaper', 'selOrient', 'inPaperW', 'inPaperH', 'chkLock', 'inCellW', 'inCellH',
      'inCols', 'inRows', 'inMargin', 'inGap', 'inCopies', 'inQRPattern',
+     'inPageFrom', 'inPageTo',
      'chkQR', 'chkBarcode', 'chkBlankLokasi', 'chkMeta', 'chkCut', 'chkSaveInk'
     ].forEach(function (id) {
       on($(id), 'change', panelChanged);
@@ -1230,7 +1276,14 @@
 
     /* ---- cetak ---- */
     on($('btnPrint'), 'click', showSummary);
-    on($('sumOk'), 'click', function () { closeModal(); setTimeout(doPrint, 60); });
+    on($('sumOk'), 'click', function () {
+      closeModal();
+      var plan = planSheets();
+      /* menyiapkan ratusan lembar butuh beberapa detik; beri kabar dulu
+         supaya tidak terlihat seperti menggantung */
+      if (plan.dicetak > 8) toast('Menyiapkan ' + plan.dicetak + ' lembar…');
+      setTimeout(doPrint, plan.dicetak > 8 ? 120 : 60);
+    });
     on($('btnCalib'), 'click', printCalibration);
 
     /* ---- modal ---- */
@@ -1287,6 +1340,12 @@
     for (var i = 0; i < rows.length; i++) if (rows[i]._on) return true;
     return false;
   }
+
+  /* dipakai uji/ untuk menyuntik data dalam jumlah besar */
+  window.__setRows = function (list) {
+    rows = list;
+    renderTable(); schedulePreview();
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, false);
